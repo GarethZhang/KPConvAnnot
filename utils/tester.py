@@ -606,8 +606,8 @@ class ModelTester:
                         # Save some of the frame pots
                         if f_ind % 20 == 0:
                             seq_path = join(test_loader.dataset.path, 'sequences', test_loader.dataset.sequences[s_ind])
-                            velo_file = join(seq_path, 'velodyne', test_loader.dataset.frames[s_ind][f_ind] + '.bin')
-                            frame_points = np.fromfile(velo_file, dtype=np.float32)
+                            velo_file = join(seq_path, 'velodyne', test_loader.dataset.frames[s_ind][f_ind])
+                            frame_points = np.load(velo_file).astype(np.float32)
                             frame_points = frame_points.reshape((-1, 4))
                             predpath = join(test_path, pred_folder, filename[:-4] + '.ply')
                             #pots = test_loader.dataset.f_potentials[s_ind][f_ind]
@@ -650,8 +650,8 @@ class ModelTester:
 
                             # Load points
                             seq_path = join(test_loader.dataset.path, 'sequences', test_loader.dataset.sequences[s_ind])
-                            velo_file = join(seq_path, 'velodyne', test_loader.dataset.frames[s_ind][f_ind] + '.bin')
-                            frame_points = np.fromfile(velo_file, dtype=np.float32)
+                            velo_file = join(seq_path, 'velodyne', test_loader.dataset.frames[s_ind][f_ind])
+                            frame_points = np.load(velo_file).astype(np.float32)
                             frame_points = frame_points.reshape((-1, 4))
                             predpath = join(test_path, pred_folder, filename[:-4] + '.ply')
                             #pots = test_loader.dataset.f_potentials[s_ind][f_ind]

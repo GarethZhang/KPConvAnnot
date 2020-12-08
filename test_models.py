@@ -27,11 +27,13 @@ import os
 import numpy as np
 import sys
 import torch
+import argparse
 
 # Dataset
 from datasets.ModelNet40 import *
 from datasets.S3DIS import *
 from datasets.SemanticKitti import *
+from datasets.Buick import *
 from torch.utils.data import DataLoader
 
 from utils.config import Config
@@ -44,6 +46,32 @@ from models.architectures import KPCNN, KPFCNN
 #           Main Call
 #       \***************/
 #
+
+
+class IOStream:
+    def __init__(self, path):
+        self.f = open(path, 'a')
+
+    def cprint(self, text):
+        print(text)
+        self.f.write(text + '\n')
+        self.f.flush()
+
+    def close(self):
+        self.f.close()
+
+def _init_saving(args):
+    # create directories
+    result_path = args.job_dir
+    chkp_dir = os.path.join(result_path, 'checkpoints')
+    if not os.path.exists(chkp_dir):
+        os.makedirs(chkp_dir)
+    if not os.path.exists('{}/backup'.format(chkp_dir)):
+        os.makedirs('{}/backup'.format(chkp_dir))
+
+    os.system('cp models/architectures.py {}/backup/architectures.py.backup'.format(chkp_dir))
+    os.system('cp train_Buick.py {}/backup/train_Buick.py.backup'.format(chkp_dir))
+    os.system('cp test_models.py {}/backup/test_models.py.backup'.format(chkp_dir))
 
 def model_choice(chosen_log):
 
@@ -90,12 +118,23 @@ if __name__ == '__main__':
     # Choose the model to visualize
     ###############################
 
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--job_dir', type=str, default='results/Log_2020-04-22_18-29-55', metavar='N',
+                        help='Job directory')
+    parser.add_argument('--log_dir', type=str, default='results/Log_2020-04-22_18-29-55', metavar='N',
+                        help='Log directory')
+
+    args = parser.parse_args()
+
     #   Here you can choose which model you want to test with the variable test_model. Here are the possible values :
     #
     #       > 'last_XXX': Automatically retrieve the last trained model on dataset XXX
     #       > '(old_)results/Log_YYYY-MM-DD_HH-MM-SS': Directly provide the path of a trained model
 
-    chosen_log = 'results/Log_2020-04-05_19-19-20'  # => ModelNet40
+    chosen_log = args.job_dir  # => ModelNet40
+
+    # save copies of important files
+    _init_saving(args)
 
     # Choose the index of the checkpoint to load OR None if you want to load the current checkpoint
     chkp_idx = None
@@ -135,6 +174,11 @@ if __name__ == '__main__':
     config = Config()
     config.load(chosen_log)
 
+    # Use user defined log directory
+    config.saving_path = args.log_dir
+    if not os.path.exists(args.log_dir):
+        os.makedirs(args.log_dir)
+
     ##################################
     # Change model parameters for test
     ##################################
@@ -147,6 +191,8 @@ if __name__ == '__main__':
     #config.in_radius = 4
     config.validation_size = 200
     config.input_threads = 10
+    config.val_batch_num = 2
+    config.dataset_task = 'slam_segmentation'
 
     ##############
     # Prepare Data
@@ -161,6 +207,18 @@ if __name__ == '__main__':
     else:
         set = 'test'
 
+    ###############################
+    # IO Stream
+    ###############################
+    textio = IOStream('{}/eval.log'.format(config.saving_path))
+
+    # MAKE SURE EVERY TEST RESULT IS DETERMINISTIC
+    torch.manual_seed(0)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+    import numpy as np
+    np.random.seed(0)
+
     # Initiate dataset
     if config.dataset == 'ModelNet40':
         test_dataset = ModelNet40Dataset(config, train=False)
@@ -174,6 +232,10 @@ if __name__ == '__main__':
         test_dataset = SemanticKittiDataset(config, set=set, balance_classes=False)
         test_sampler = SemanticKittiSampler(test_dataset)
         collate_fn = SemanticKittiCollate
+    elif config.dataset == 'Buick':
+        test_dataset = BuickDataset(config, set=set, balance_classes=False)
+        test_sampler = BuickSampler(test_dataset)
+        collate_fn = BuickCollate
     else:
         raise ValueError('Unsupported dataset : ' + config.dataset)
 
@@ -185,6 +247,7 @@ if __name__ == '__main__':
                              num_workers=config.input_threads,
                              pin_memory=True)
 
+    print(config.dataset_task)
     # Calibrate samplers
     test_sampler.calibration(test_loader, verbose=True)
 
