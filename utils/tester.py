@@ -474,7 +474,7 @@ class ModelTester:
 
         # Choose validation smoothing parameter (0 for no smothing, 0.99 for big smoothing)
         test_smooth = 0.5
-        last_min = -0.5
+        last_min = 0.0
         softmax = torch.nn.Softmax(1)
 
         # Number of classes including ignored labels
@@ -538,6 +538,8 @@ class ModelTester:
 
                 # Forward pass
                 outputs = net(batch, config)
+                loss = net.loss(outputs, batch.labels)
+                acc = net.accuracy(outputs, batch.labels)
 
                 # Get probs and labels
                 stk_probs = softmax(outputs).cpu().detach().numpy()
@@ -547,6 +549,15 @@ class ModelTester:
                 r_mask_list = batch.reproj_masks
                 labels_list = batch.val_labels
                 torch.cuda.synchronize(self.device)
+
+                if config.saving:
+                    with open(join(config.saving_path, 'test.txt'), "a") as file:
+                        message = '{:d} {:d} {:.3f} {:.3f} {:.3f}\n'
+                        file.write(message.format(self.epoch,
+                                                  i,
+                                                  net.output_loss,
+                                                  net.reg_loss,
+                                                  acc))
 
                 t += [time.time()]
 

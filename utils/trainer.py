@@ -136,6 +136,10 @@ class ModelTrainer:
             with open(join(config.saving_path, 'training.txt'), "w") as file:
                 file.write('epochs steps out_loss offset_loss train_accuracy time\n')
 
+            with open(join(config.saving_path, 'validation.txt'), "w") as file:
+                file.write('epochs index out_loss offset_loss train_accuracy time\n')
+
+
             # Killing file (simply delete this file when you want to stop the training)
             PID_file = join(config.saving_path, 'running_PID.txt')
             if not exists(PID_file):
@@ -267,8 +271,8 @@ class ModelTrainer:
                     torch.save(save_dict, checkpoint_path)
 
             # # Validation
-            # net.eval()
-            # self.validation(net, val_loader, config)
+            net.eval()
+            self.validation(net, val_loader, config)
             net.train()
 
         print('Finished Training')
@@ -707,6 +711,8 @@ class ModelTrainer:
 
             # Forward pass
             outputs = net(batch, config)
+            loss = net.loss(outputs, batch.labels)
+            acc = net.accuracy(outputs, batch.labels)
 
             # Get probs and labels
             stk_probs = softmax(outputs).cpu().detach().numpy()
@@ -716,6 +722,16 @@ class ModelTrainer:
             r_mask_list = batch.reproj_masks
             labels_list = batch.val_labels
             torch.cuda.synchronize(self.device)
+
+            if config.saving:
+                with open(join(config.saving_path, 'validation.txt'), "a") as file:
+                    message = '{:d} {:d} {:.3f} {:.3f} {:.3f} {:.3f}\n'
+                    file.write(message.format(self.epoch,
+                                              i,
+                                              net.output_loss,
+                                              net.reg_loss,
+                                              acc,
+                                              t[-1] - t0))
 
             # Get predictions and labels per instance
             # ***************************************
@@ -759,9 +775,8 @@ class ModelTrainer:
                 # Save some of the frame pots
                 if f_ind % 20 == 0:
                     seq_path = join(val_loader.dataset.path, 'sequences', val_loader.dataset.sequences[s_ind])
-                    velo_file = join(seq_path, 'velodyne', val_loader.dataset.frames[s_ind][f_ind] + '.bin')
-                    frame_points = np.fromfile(velo_file, dtype=np.float32)
-                    frame_points = frame_points.reshape((-1, 4))
+                    velo_file = join(seq_path, 'velodyne', val_loader.dataset.frames[s_ind][f_ind])
+                    frame_points = np.load(velo_file)
                     write_ply(filepath[:-4] + '_pots.ply',
                               [frame_points[:, :3], frame_labels, frame_preds],
                               ['x', 'y', 'z', 'gt', 'pre'])
