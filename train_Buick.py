@@ -42,6 +42,19 @@ from models.architectures import KPFCNN
 #           Config Class
 #       \******************/
 #
+def _init_saving(args):
+    # create directories
+    result_path = args.job_dir
+    chkp_dir = os.path.join(result_path, 'checkpoints')
+    if not os.path.exists(chkp_dir):
+        os.makedirs(chkp_dir)
+    if not os.path.exists('{}/backup'.format(chkp_dir)):
+        os.makedirs('{}/backup'.format(chkp_dir))
+
+    os.system('cp models/architectures.py {}/backup/architectures.py.backup'.format(chkp_dir))
+    os.system('cp train_Buick.py {}/backup/train_Buick.py.backup'.format(chkp_dir))
+    os.system('cp test_models.py {}/backup/test_models.py.backup'.format(chkp_dir))
+
 
 class BuickConfig(Config):
     """
@@ -96,15 +109,15 @@ class BuickConfig(Config):
     ###################
 
     # Radius of the input sphere
-    in_radius = 50.0
-    val_radius = 51.0
+    in_radius = 100.0
+    val_radius = 100.0
     n_frames = 1
-    max_in_points = 100000
-    max_val_points = 100000
+    max_in_points = 180000
+    max_val_points = 180000
 
     # Number of batch
-    batch_num = 2
-    val_batch_num = 2
+    batch_num = 1
+    val_batch_num = 1
 
     # Number of kernel points
     num_kernel_points = 15
@@ -128,7 +141,7 @@ class BuickConfig(Config):
     aggregation_mode = 'sum'
 
     # Choice of input features
-    first_features_dim = 128
+    first_features_dim = 64
     in_features_dim = 2
 
     # Can the network learn modulations
@@ -208,6 +221,12 @@ if __name__ == '__main__':
     # Initialize the environment
     ############################
 
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--job_dir', type=str, default='results/Log_2020-04-22_18-29-55', metavar='N',
+                        help='Job directory')
+
+    args = parser.parse_args()
+
     # Set which gpu is going to be used
     GPU_ID = '0'
 
@@ -254,19 +273,23 @@ if __name__ == '__main__':
         config.load(os.path.join('results', previous_training_path))
         config.saving_path = None
 
-    # Get path from argument if given
-    if len(sys.argv) > 1:
-        config.saving_path = sys.argv[1]
+    # # Get path from argument if given
+    # if len(sys.argv) > 1:
+    #     config.saving_path = sys.argv[1]
+    config.saving_path = args.job_dir
+
+    # save copies of important files
+    _init_saving(args)
 
     # Initialize datasets
     training_dataset = BuickDataset(config, set='training',
-                                    balance_classes=False)
-    # test_dataset = BuickDataset(config, set='validation',
-    #                             balance_classes=False)
+                                    balance_classes=True)
+    test_dataset = BuickDataset(config, set='validation',
+                                balance_classes=False)
 
     # Initialize samplers
     training_sampler = BuickSampler(training_dataset)
-    # test_sampler = BuickSampler(test_dataset)
+    test_sampler = BuickSampler(test_dataset)
 
     # Initialize the dataloader
     training_loader = DataLoader(training_dataset,
@@ -275,20 +298,20 @@ if __name__ == '__main__':
                                  collate_fn=BuickCollate,
                                  num_workers=config.input_threads,
                                  pin_memory=True)
-    # test_loader = DataLoader(test_dataset,
-    #                          batch_size=1,
-    #                          sampler=test_sampler,
-    #                          collate_fn=BuickCollate,
-    #                          num_workers=config.input_threads,
-    #                          pin_memory=True)
+    test_loader = DataLoader(test_dataset,
+                             batch_size=1,
+                             sampler=test_sampler,
+                             collate_fn=BuickCollate,
+                             num_workers=config.input_threads,
+                             pin_memory=True)
 
     # Calibrate max_in_point value
     training_sampler.calib_max_in(config, training_loader, verbose=True)
-    # test_sampler.calib_max_in(config, test_loader, verbose=True)
+    test_sampler.calib_max_in(config, test_loader, verbose=True)
 
     # Calibrate samplers
     training_sampler.calibration(training_loader, verbose=True)
-    # test_sampler.calibration(test_loader, verbose=True)
+    test_sampler.calibration(test_loader, verbose=True)
 
     # debug_timing(training_dataset, training_loader)
     # debug_timing(test_dataset, test_loader)
@@ -321,7 +344,7 @@ if __name__ == '__main__':
     print('**************')
 
     # Training
-    trainer.train(net, training_loader, None, config)
+    trainer.train(net, training_loader, test_loader, config)
 
     print('Forcing exit now')
     os.kill(os.getpid(), signal.SIGINT)

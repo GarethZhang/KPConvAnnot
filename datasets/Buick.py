@@ -82,9 +82,9 @@ class BuickDataset(PointCloudDataset):
         if self.set == 'training':
             self.sequences = [self.seq_fname[i] for i in range(self.num_seq) if i == 0]
         elif self.set == 'validation':
-            self.sequences = [self.seq_fname[i] for i in range(self.num_seq) if i == 0]
+            self.sequences = [self.seq_fname[i] for i in range(self.num_seq) if i == 1]
         elif self.set == 'test':
-            self.sequences = [self.seq_fname[i] for i in range(self.num_seq) if i > 0]
+            self.sequences = [self.seq_fname[i] for i in range(self.num_seq) if i == 1]
         else:
             raise ValueError('Unknown set for Oxford data: ', self.set)
         print(self.sequences)
@@ -97,6 +97,7 @@ class BuickDataset(PointCloudDataset):
         self.frames_indices = []
         self.annotated_frames = []
         self.annotation_ts = []
+        self.annotation_indices = []
         for i, seq in enumerate(self.sequences):
             velo_annotated_path = join(self.path, 'sequences', seq, self.annotation)
             annotated_frames = np.sort([vf for vf in listdir(velo_annotated_path) if vf.endswith('.ply')])
@@ -114,11 +115,29 @@ class BuickDataset(PointCloudDataset):
             # Cross-referencing velodyne and annotations to make sure a one-to-one match
             self.frames.append([frame for j, frame in enumerate(frames) if frame_t[j] in annotation_t])
             self.frames_indices.append([j for j, frame in enumerate(frames) if frame_t[j] in annotation_t])
-            self.annotated_frames.append([annotated_frame for k, annotated_frame in enumerate(annotated_frames) if annotation_t[k] in frame_t])
+            self.annotated_frames.append([annotated_frame for j, annotated_frame in enumerate(annotated_frames) if annotation_t[j] in frame_t])
+            self.annotation_indices.append([j for j, annotated_frame in enumerate(annotated_frames) if annotation_t[j] in frame_t])
 
             assert len(self.frames[i]) == len(self.annotated_frames[i]), 'Velodyne and annotation should have same number of frames!'
 
-            print('Seq {:s} has {}/{} valid velodyne frames'.format(seq, len(self.frames[i]), len(frames)))
+            # verify timestamp matches
+            for j in range(len(self.frames_indices[i])):
+                if frame_t[self.frames_indices[i][j]] != annotation_t[self.annotation_indices[i][j]]:
+                    print("Frame timestamp: {:s}".format(frame_t[self.frames_indices[i][j]]))
+                    print("Annotation timestamp: {:s}".format(annotation_t[self.annotation_indices[i][j]]))
+                    assert False, "Timestamp does not match!"
+
+            # # verify that all the matching frames have the same size
+            # seq_path = join(self.path, 'sequences', self.sequences[i])
+            # for j, frame in enumerate(self.frames[i]):
+            #     frame_n_pts = np.load(join(seq_path, self.lidar, frame)).shape[0]
+            #     label_file = join(seq_path, self.annotation, self.annotated_frames[i][j])
+            #     annotated_frame_n_pts = read_ply(label_file)['classif'].shape[0]
+            #     if frame_n_pts != annotated_frame_n_pts:
+            #         print(frame, self.annotated_frames[i][j])
+            #         print("Frame and annotation must have same number of points!")
+
+        print('Seq {:s} has {}/{} valid velodyne frames'.format(seq, len(self.frames[i]), len(frames)))
 
         ###########################
         # Object classes parameters
