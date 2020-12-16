@@ -124,8 +124,23 @@ if __name__ == '__main__':
         for i, vo in enumerate(validation_visualization_options):
             index = validation_titles.index(vo)
             ax = fig.add_subplot(nrows, ncols, i + 1)
-            ax.plot(np.arange(num_validation_epochs), epoch_validation_stats[:, index])
+            ax.plot(np.arange(1, num_validation_epochs), epoch_validation_stats[1:, index])
             ax.set_title(vo)
             ax.set_xlabel('Epoch')
             ax.set_ylabel(validation_y_labels[index])
         fig.savefig('{:s}/validation_convergence.png'.format(log_dir))
+
+        # plot training vs validation
+        fig = plt.figure(figsize=(12, 6))
+        fig.suptitle('{:s}:{:s}'.format(args.keywords, config.log_dir))
+        for i, vo in enumerate(validation_visualization_options):
+            training_index = training_titles.index(training_visualization_options[i])
+            validation_index = validation_titles.index(vo)
+            ax = fig.add_subplot(nrows, ncols, i + 1)
+            ax.plot(np.arange(num_training_epochs), epoch_training_stats[:, training_index], label='train')
+            ax.plot(np.arange(1, num_validation_epochs), epoch_validation_stats[1:, validation_index], label='validation')
+            ax.set_title(vo)
+            ax.set_xlabel('Epoch')
+            ax.set_ylabel(validation_y_labels[validation_index])
+            ax.legend()
+        fig.savefig('{:s}/convergence.png'.format(log_dir))
