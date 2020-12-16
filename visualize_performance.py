@@ -22,7 +22,9 @@ class Config:
 
     # visualization configs
     training_log = 'training.txt'
-    visualization_options = ['out_loss', 'train_accuracy']
+    validation_log = 'validation.txt'
+    training_visualization_options = ['out_loss', 'train_accuracy']
+    validation_visualization_options = ['out_loss', 'validation_accuracy']
 
     # font config
     SMALL_SIZE = 12
@@ -60,32 +62,70 @@ if __name__ == '__main__':
                    config.log_dir)
     training_log_fname = join(log_dir,
                               config.training_log)
+    validation_log_fname = join(log_dir,
+                                config.validation_log)
+
+    validation_exists = False
+    if os.path.exists(validation_log_fname):
+        validation_exists = True
+
     training_titles = ['epochs', 'steps', 'out_loss', 'offset_loss', 'train_accuracy', 'time']
     training_stats = np.loadtxt(training_log_fname, skiprows=1)
-    y_labels = ['Epoch', 'Step', 'Cross Entropy Loss', '', 'Accuracy', 'Time']
+    training_y_labels = ['Epoch', 'Step', 'Cross Entropy Loss', '', 'Accuracy', 'Time']
 
     # configure visualization options
-    visualization_options = config.visualization_options
+    training_visualization_options = config.training_visualization_options
 
-    # compile epoch stats
-    epochs = np.unique(training_stats[:,0])
-    num_epochs = epochs.shape[0]
-    num_titles = len(training_titles)
-    num_vo = len(visualization_options)
+    # compile epoch stats for training
+    training_epochs = np.unique(training_stats[:,0])
+    num_training_epochs = training_epochs.shape[0]
+    num_training_titles = len(training_titles)
+    num_training_vo = len(training_visualization_options)
 
-    epoch_stats = np.zeros((num_epochs, num_titles))
-    for i in range(num_epochs):
-        epoch_stats[i] = np.mean(training_stats[training_stats[:, 0] == i], axis=0)
+    epoch_training_stats = np.zeros((num_training_epochs, num_training_titles))
+    for i in range(num_training_epochs):
+        epoch_training_stats[i] = np.mean(training_stats[training_stats[:, 0] == i], axis=0)
 
     ncols = 2
-    nrows = num_vo // ncols + 1
-    fig = plt.figure(figsize=(12, 12))
+    nrows = num_training_vo // ncols + 1 if num_training_vo % ncols else num_training_vo // ncols
+    fig = plt.figure(figsize=(12, 6))
     fig.suptitle('{:s}:{:s}'.format(args.keywords, config.log_dir))
-    for i, vo in enumerate(visualization_options):
+    for i, vo in enumerate(training_visualization_options):
         index = training_titles.index(vo)
         ax = fig.add_subplot(nrows, ncols, i + 1)
-        ax.plot(np.arange(num_epochs), epoch_stats[:, index])
+        ax.plot(np.arange(num_training_epochs), epoch_training_stats[:, index])
         ax.set_title(vo)
         ax.set_xlabel('Epoch')
-        ax.set_ylabel(y_labels[index])
-    fig.savefig('{:s}/convergence.png'.format(log_dir))
+        ax.set_ylabel(training_y_labels[index])
+    fig.savefig('{:s}/training_convergence.png'.format(log_dir))
+
+    if validation_exists:
+        validation_titles = ['epochs', 'index', 'out_loss', 'offset_loss', 'validation_accuracy', 'time']
+        validation_stats = np.loadtxt(validation_log_fname, skiprows=1)
+        validation_y_labels = ['Epoch', 'Index', 'Cross Entropy Loss', '', 'Accuracy', 'Time']
+
+        # configure visualization options
+        validation_visualization_options = config.validation_visualization_options
+
+        # compile epoch stats for validation
+        validation_epochs = np.unique(validation_stats[:,0])
+        num_validation_epochs = validation_epochs.shape[0]
+        num_validation_titles = len(validation_titles)
+        num_validation_vo = len(validation_visualization_options)
+
+        epoch_validation_stats = np.zeros((num_validation_epochs, num_validation_titles))
+        for i in range(1, num_validation_epochs):
+            epoch_validation_stats[i] = np.mean(validation_stats[validation_stats[:, 0] == i], axis=0)
+
+        ncols = 2
+        nrows = num_validation_vo // ncols + 1 if num_validation_vo % ncols else num_validation_vo // ncols
+        fig = plt.figure(figsize=(12, 6))
+        fig.suptitle('{:s}:{:s}'.format(args.keywords, config.log_dir))
+        for i, vo in enumerate(validation_visualization_options):
+            index = validation_titles.index(vo)
+            ax = fig.add_subplot(nrows, ncols, i + 1)
+            ax.plot(np.arange(num_validation_epochs), epoch_validation_stats[:, index])
+            ax.set_title(vo)
+            ax.set_xlabel('Epoch')
+            ax.set_ylabel(validation_y_labels[index])
+        fig.savefig('{:s}/validation_convergence.png'.format(log_dir))
