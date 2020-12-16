@@ -603,7 +603,7 @@ class BuickDataset(PointCloudDataset):
         if self.set in ['training', 'validation']:
 
             class_frames_bool = np.zeros((0, self.num_classes), dtype=np.bool)
-            self.class_proportions = np.zeros((self.num_classes,), dtype=np.int32)
+            self.class_proportions = np.zeros((self.num_classes,), dtype=np.int64)
 
             for s_ind, (seq, seq_frames) in enumerate(zip(self.sequences, self.frames)):
                 seq_annotations = self.annotated_frames[s_ind]
@@ -628,7 +628,7 @@ class BuickDataset(PointCloudDataset):
                     seq_class_frames = np.zeros((len(seq_frames), self.num_classes), dtype=np.bool)
 
                     # Proportion of each class
-                    seq_proportions = np.zeros((self.num_classes,), dtype=np.int32)
+                    seq_proportions = np.zeros((self.num_classes,), dtype=np.int64)
 
                     # Sequence path
                     seq_path = join(self.path, 'sequences', seq)
@@ -756,25 +756,86 @@ class BuickSampler(Sampler):
         (input sphere) in epoch instead of the list of point indices
         """
 
-        # Initiate current epoch ind
-        self.dataset.epoch_i *= 0
-        self.dataset.epoch_inds *= 0
+        if self.dataset.balance_classes:
 
-        # Number of sphere centers taken per class in each cloud
-        num_centers = self.dataset.epoch_inds.shape[0]
+            # Initiate current epoch ind
+            self.dataset.epoch_i *= 0
+            self.dataset.epoch_inds *= 0
+            self.dataset.epoch_labels *= 0
 
-        # Get the list of indices to generate thanks to potentials
-        if num_centers < self.dataset.potentials.shape[0]:
-            _, gen_indices = torch.topk(self.dataset.potentials, num_centers, largest=False, sorted=True)
+            # Number of sphere centers taken per class in each cloud
+            num_centers = self.dataset.epoch_inds.shape[0]
+
+            # Generate a list of indices balancing classes and respecting potentials
+            gen_indices = []
+            gen_classes = []
+            for i, c in enumerate(self.dataset.label_values):
+                if c not in self.dataset.ignored_labels:
+
+                    # Get the potentials of the frames containing this class
+                    class_potentials = self.dataset.potentials[self.dataset.class_frames[i]]
+
+                    # Get the indices to generate thanks to potentials
+                    used_classes = self.dataset.num_classes - len(self.dataset.ignored_labels)
+                    class_n = num_centers // used_classes + 1
+                    if class_n < class_potentials.shape[0]:
+                        _, class_indices = torch.topk(class_potentials, class_n, largest=False)
+                    else:
+                        class_indices = torch.zeros((0,), dtype=torch.int32)
+                        while class_indices.shape < class_n:
+                            new_class_inds = torch.randperm(class_potentials.shape[0])
+                            class_indices = torch.cat((class_indices, new_class_inds), dim=0)
+                        class_indices = class_indices[:class_n]
+                    class_indices = self.dataset.class_frames[i][class_indices]
+
+                    # Add the indices to the generated ones
+                    gen_indices.append(class_indices)
+                    gen_classes.append(class_indices * 0 + c)
+
+                    # Update potentials
+                    update_inds = torch.unique(class_indices)
+                    self.dataset.potentials[update_inds] = torch.ceil(self.dataset.potentials[update_inds])
+                    self.dataset.potentials[update_inds] += torch.from_numpy(np.random.rand(update_inds.shape[0]) * 0.1 + 0.1)
+
+            # Stack the chosen indices of all classes
+            gen_indices = torch.cat(gen_indices, dim=0)
+            gen_classes = torch.cat(gen_classes, dim=0)
+
+            # Shuffle generated indices
+            rand_order = torch.randperm(gen_indices.shape[0])[:num_centers]
+            gen_indices = gen_indices[rand_order]
+            gen_classes = gen_classes[rand_order]
+
+            # Update potentials (Change the order for the next epoch)
+            #self.dataset.potentials[gen_indices] = torch.ceil(self.dataset.potentials[gen_indices])
+            #self.dataset.potentials[gen_indices] += torch.from_numpy(np.random.rand(gen_indices.shape[0]) * 0.1 + 0.1)
+
+            # Update epoch inds
+            self.dataset.epoch_inds += gen_indices
+            self.dataset.epoch_labels += gen_classes.type(torch.int32)
+
         else:
-            gen_indices = torch.randperm(self.dataset.potentials.shape[0])
 
-        # Update potentials (Change the order for the next epoch)
-        self.dataset.potentials[gen_indices] = torch.ceil(self.dataset.potentials[gen_indices])
-        self.dataset.potentials[gen_indices] += torch.from_numpy(np.random.rand(gen_indices.shape[0]) * 0.1 + 0.1)
+            # Initiate current epoch ind
+            self.dataset.epoch_i *= 0
+            self.dataset.epoch_inds *= 0
+            self.dataset.epoch_labels *= 0
 
-        # Update epoch inds
-        self.dataset.epoch_inds += gen_indices
+            # Number of sphere centers taken per class in each cloud
+            num_centers = self.dataset.epoch_inds.shape[0]
+
+            # Get the list of indices to generate thanks to potentials
+            if num_centers < self.dataset.potentials.shape[0]:
+                _, gen_indices = torch.topk(self.dataset.potentials, num_centers, largest=False, sorted=True)
+            else:
+                gen_indices = torch.randperm(self.dataset.potentials.shape[0])
+
+            # Update potentials (Change the order for the next epoch)
+            self.dataset.potentials[gen_indices] = torch.ceil(self.dataset.potentials[gen_indices])
+            self.dataset.potentials[gen_indices] += torch.from_numpy(np.random.rand(gen_indices.shape[0]) * 0.1 + 0.1)
+
+            # Update epoch inds
+            self.dataset.epoch_inds += gen_indices
 
         # Generator loop
         for i in range(self.N):
