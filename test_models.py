@@ -123,6 +123,8 @@ if __name__ == '__main__':
                         help='Job directory')
     parser.add_argument('--log_dir', type=str, default='results/Log_2020-04-22_18-29-55', metavar='N',
                         help='Log directory')
+    parser.add_argument('--chkp', type=str, default='', metavar='N',
+                        help='Manual checkpoint selection')
 
     args = parser.parse_args()
 
@@ -135,9 +137,6 @@ if __name__ == '__main__':
 
     # save copies of important files
     _init_saving(args)
-
-    # Choose the index of the checkpoint to load OR None if you want to load the current checkpoint
-    chkp_idx = None
 
     # Choose to test on validation or test split
     on_val = True
@@ -164,10 +163,10 @@ if __name__ == '__main__':
     chkps = [f for f in os.listdir(chkp_path) if f[:4] == 'chkp']
 
     # Find which snapshot to restore
-    if chkp_idx is None:
+    if args.chkp == '':
         chosen_chkp = 'current_chkp.tar'
     else:
-        chosen_chkp = np.sort(chkps)[chkp_idx]
+        chosen_chkp = args.chkp
     chosen_chkp = os.path.join(chosen_log, 'checkpoints', chosen_chkp)
 
     # Initialize configuration class
