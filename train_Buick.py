@@ -116,14 +116,14 @@ class BuickConfig(Config):
     max_val_points = 180000
 
     # Number of batch
-    batch_num = 1
-    val_batch_num = 1
+    batch_num = 8
+    val_batch_num = 8
 
     # Number of kernel points
     num_kernel_points = 15
 
     # Size of the first subsampling grid in meter
-    first_subsampling_dl = 0.06
+    first_subsampling_dl = 0.2
 
     # Radius of convolution in "number grid cell". (2.5 is the standard value)
     conv_radius = 2.5
@@ -142,7 +142,7 @@ class BuickConfig(Config):
 
     # Choice of input features
     first_features_dim = 64
-    in_features_dim = 2
+    in_features_dim = 5
 
     # Can the network learn modulations
     modulated = False
@@ -203,6 +203,8 @@ class BuickConfig(Config):
     # sqrt(Inverse of proportion * 100)  capped (0.5 < X < 5)
     # class_w = [1.430, 5.000, 5.000, 4.226, 5.000, 5.000, 5.000, 5.000, 0.719, 2.377,
     #            0.886, 3.863, 0.869, 1.209, 0.594, 3.780, 1.129, 5.000, 5.000]
+    # class_w = [4.32, 1.00, 20.82, 29.08]
+    class_w = [0.23843341, 0.11460648, 0.5228806 , 0.61805074]
 
     # Do we nee to save convergence
     saving = True
