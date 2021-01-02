@@ -47,11 +47,11 @@ if __name__ == '__main__':
     # update config
     config.log_dir = args.job_dir if args.job_dir != '' else config.log_dir
 
-    plt.rc('font', size=config.SMALL_SIZE)          # controls default text sizes
+    plt.rc('font', size=config.BIGGER_SIZE)          # controls default text sizes
     plt.rc('axes', titlesize=config.MEDIUM_SIZE)     # fontsize of the axes title
     plt.rc('axes', labelsize=config.MEDIUM_SIZE)    # fontsize of the x and y labels
-    plt.rc('xtick', labelsize=config.SMALL_SIZE)    # fontsize of the tick labels
-    plt.rc('ytick', labelsize=config.SMALL_SIZE)    # fontsize of the tick labels
+    plt.rc('xtick', labelsize=config.BIGGER_SIZE)    # fontsize of the tick labels
+    plt.rc('ytick', labelsize=config.BIGGER_SIZE)    # fontsize of the tick labels
     plt.rc('legend', fontsize=config.SMALL_SIZE)    # legend fontsize
     plt.rc('figure', titlesize=config.BIGGER_SIZE)  # fontsize of the figure title
 

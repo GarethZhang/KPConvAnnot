@@ -40,6 +40,7 @@ from utils.ply import read_ply
 from datasets.ModelNet40 import ModelNet40Dataset
 from datasets.S3DIS import S3DISDataset
 from datasets.SemanticKitti import SemanticKittiDataset
+from datasets.Buick import BuickDataset
 
 # ----------------------------------------------------------------------------------------------------------------------
 #
@@ -286,6 +287,7 @@ def compare_trainings(list_of_paths, list_of_labels=None):
     # **********
 
     # Figure
+    print(list_of_labels, all_epochs, all_loss)
     fig = plt.figure('loss')
     for i, label in enumerate(list_of_labels):
         plt.plot(all_epochs[i], all_loss[i], linewidth=1, label=label)
@@ -697,8 +699,8 @@ def experiment_name_1():
     """
 
     # Using the dates of the logs, you can easily gather consecutive ones. All logs should be of the same dataset.
-    start = 'Log_2020-04-22_11-52-58'
-    end = 'Log_2020-05-22_11-52-58'
+    start = 'Log_2020-12-08_V0'
+    end = 'Log_2020-12-08_V0'
 
     # Name of the result path
     res_path = 'results'
@@ -801,6 +803,9 @@ if __name__ == '__main__':
     elif config.dataset_task == 'slam_segmentation':
         if config.dataset.startswith('SemanticKitti'):
             dataset = SemanticKittiDataset(config)
+            compare_convergences_SLAM(dataset, logs, logs_names)
+        elif config.dataset.startswith('SemanticKitti'):
+            dataset = BuickDataset(config)
             compare_convergences_SLAM(dataset, logs, logs_names)
     else:
         raise ValueError('Unsupported dataset : ' + plot_dataset)
