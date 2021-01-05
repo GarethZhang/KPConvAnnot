@@ -205,6 +205,7 @@ class KPFCNN(nn.Module):
         out_dim = config.first_features_dim
         self.K = config.num_kernel_points
         self.C = len(lbl_values) - len(ign_lbls)
+        self.C = 4
 
         #####################
         # List Encoder blocks

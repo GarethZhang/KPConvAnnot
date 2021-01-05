@@ -62,7 +62,7 @@ class SemanticKittiDataset(PointCloudDataset):
         ##########################
 
         # Dataset folder
-        self.path = '../../Data/SemanticKitti'
+        self.path = '/raid/gzh/Data/SemanticKitti'
 
         # Type of task conducted on this dataset
         self.dataset_task = 'slam_segmentation'
@@ -128,6 +128,7 @@ class SemanticKittiDataset(PointCloudDataset):
         # Update number of class and data task in configuration
         config.num_classes = self.num_classes
         config.dataset_task = self.dataset_task
+        config.num_classes = 5
 
         # Parameters from config
         self.config = config
@@ -439,7 +440,7 @@ class SemanticKittiDataset(PointCloudDataset):
             stacked_features = np.hstack((stacked_features, features[:, 2:]))
         elif self.config.in_features_dim == 4:
             # Use all coordinates
-            stacked_features = np.hstack((stacked_features, features[:3]))
+            stacked_features = np.hstack((stacked_features, features[:, :3]))
         elif self.config.in_features_dim == 5:
             # Use all coordinates + reflectance
             stacked_features = np.hstack((stacked_features, features))
