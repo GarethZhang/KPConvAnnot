@@ -65,7 +65,8 @@ class BuickDataset(PointCloudDataset):
         ##########################
 
         # Dataset folder
-        self.path = '/raid/gzh/Data/Buick' # path on docker container
+        # self.path = '/raid/gzh/Data/Buick' # path on docker container
+        self.path = '/raid/gzh/Data/Boreas'
         self.lidar_dt = 0.1
         self.skip = 1
 
@@ -80,11 +81,11 @@ class BuickDataset(PointCloudDataset):
 
         # Get a list of sequences (0 - 31)
         if self.set == 'training':
-            self.sequences = [self.seq_fname[i] for i in range(self.num_seq) if i == 0]
+            self.sequences = [self.seq_fname[i] for i in range(self.num_seq) if i == 0 or i == 1]
         elif self.set == 'validation':
-            self.sequences = [self.seq_fname[i] for i in range(self.num_seq) if i == 1]
+            self.sequences = [self.seq_fname[i] for i in range(self.num_seq) if i == 2]
         elif self.set == 'test':
-            self.sequences = [self.seq_fname[i] for i in range(self.num_seq) if i == 1]
+            self.sequences = [self.seq_fname[i] for i in range(self.num_seq) if i == 2]
         else:
             raise ValueError('Unknown set for Oxford data: ', self.set)
         print(self.sequences)
@@ -103,13 +104,14 @@ class BuickDataset(PointCloudDataset):
             annotated_frames = np.sort([vf for vf in listdir(velo_annotated_path) if vf.endswith('.ply')])
 
             # save the timestamp into a list for search up
-            annotation_t = [annotated_frame.split('_')[2].split('.')[0] for annotated_frame in annotated_frames]
+            # timestamp is required for first 11 digits, which matches up to .x seconds
+            annotation_t = [annotated_frame.split('_')[2].split('.')[0][:14] for annotated_frame in annotated_frames]
             self.annotation_ts.append(annotation_t)
 
             velo_path = join(self.path, 'sequences', seq, self.lidar)
-            frames = np.sort([vf for vf in listdir(velo_path) if vf.endswith('.npy')])
+            frames = np.sort([vf for vf in listdir(velo_path) if vf.endswith('.ply')])
 
-            frame_t = [(frame.split('_')[0] + frame.split('_')[1].split('.')[0]) for frame in frames]
+            frame_t = [frame.split('_')[2].split('.')[0][:14] for frame in frames]
             self.frame_ts.append(frame_t)
 
             # Cross-referencing velodyne and annotations to make sure a one-to-one match
@@ -137,7 +139,7 @@ class BuickDataset(PointCloudDataset):
             #         print(frame, self.annotated_frames[i][j])
             #         print("Frame and annotation must have same number of points!")
 
-        print('Seq {:s} has {}/{} valid velodyne frames'.format(seq, len(self.frames[i]), len(frames)))
+            print('Seq {:s} has {}/{} valid velodyne frames'.format(seq, len(self.frames[i]), len(frames)))
 
         ###########################
         # Object classes parameters
@@ -310,13 +312,13 @@ class BuickDataset(PointCloudDataset):
                     label_file = join(seq_path, self.annotation, self.annotated_frames[s_ind][f_ind - f_inc])
 
                 # Read points
-                frame_points = np.load(velo_file).astype(np.float32)
-                points = frame_points.reshape((-1, 4))
-                frame_points[:,3] = frame_points[:,3] / 255.0 # scale down intensity channel
+                frame_data = read_ply(velo_file)
+                points = np.vstack((frame_data['x'], frame_data['y'], frame_data['z'])).T
+                points = np.hstack((points, np.ones_like(points[:,0:1]))).astype(np.float32) # TODO latent intensity
 
                 if self.set == 'test':
                     # Fake labels
-                    sem_labels = np.zeros((frame_points.shape[0],), dtype=np.int32)
+                    sem_labels = np.zeros((points.shape[0],), dtype=np.int32)
                 else:
                     # Read labels
                     annotation_data = read_ply(label_file)
@@ -468,7 +470,7 @@ class BuickDataset(PointCloudDataset):
             stacked_features = np.hstack((stacked_features, features[:, 2:]))
         elif self.config.in_features_dim == 4:
             # Use all coordinates
-            stacked_features = np.hstack((stacked_features, features[:3]))
+            stacked_features = np.hstack((stacked_features, features[:, :3]))
         elif self.config.in_features_dim == 5:
             # Use all coordinates + reflectance
             stacked_features = np.hstack((stacked_features, features))
@@ -586,8 +588,13 @@ class BuickDataset(PointCloudDataset):
             seq_folder = join(self.path, 'sequences', seq)
 
             # Read poses
-            poses_all = np.load(join(seq_folder, 'poses.npy')).astype(np.float32)
-            self.poses.append([poses_all[j] for j in range(poses_all.shape[0]) if j in self.frames_indices[i]])
+            # poses_all = np.load(join(seq_folder, 'poses.npy')).astype(np.float32)
+            poses_all = np.loadtxt(join(seq_folder, 'map_poses.txt')).astype(np.float32)
+            num_poses_all = poses_all.shape[0]
+            T_map_velo_loc = np.expand_dims(np.identity(4, dtype=np.float32), axis=0).repeat(num_poses_all, axis=0)
+            T_map_velo_loc[:,:3,:3] = poses_all[:,1:].reshape((-1, 4, 3))[:,:3,:3]
+            T_map_velo_loc[:,:3, 3] = (poses_all[:,1:].reshape((-1, 4, 3))[:, 3,:3])
+            self.poses.append([T_map_velo_loc[j] for j in range(T_map_velo_loc.shape[0]) if j in self.annotation_indices[i]])
 
         ###################################
         # Prepare the indices of all frames

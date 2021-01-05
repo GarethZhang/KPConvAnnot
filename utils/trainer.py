@@ -776,7 +776,9 @@ class ModelTrainer:
                 if f_ind % 20 == 0:
                     seq_path = join(val_loader.dataset.path, 'sequences', val_loader.dataset.sequences[s_ind])
                     velo_file = join(seq_path, 'velodyne', val_loader.dataset.frames[s_ind][f_ind])
-                    frame_points = np.load(velo_file)
+                    frame_data = read_ply(velo_file)
+                    frame_points = np.vstack((frame_data['x'], frame_data['y'], frame_data['z'])).T
+
                     write_ply(filepath[:-4] + '_pots.ply',
                               [frame_points[:, :3], frame_labels, frame_preds],
                               ['x', 'y', 'z', 'gt', 'pre'])

@@ -132,10 +132,19 @@
 #JOB_DIR=results/Log_2020-12-16_V0
 #python train_Buick.py --job_dir $JOB_DIR
 
-# Locally visualize the network performance
-JOB_DIR=results/Log_2020-12-16_V0
-KEYWORDS=EPOCH3
-python visualize_performance.py --job_dir $JOB_DIR --keywords $KEYWORDS
+## Locally visualize the network performance
+#JOB_DIR=results/Log_2020-12-16_V0
+#KEYWORDS=EPOCH3
+#python visualize_performance.py --job_dir $JOB_DIR --keywords $KEYWORDS
+
+######## 1-3-2021 ########
+# On GPU 2 with batch size 8
+# Fix balanced class (technically the same as before)
+# Add class_w to balance loss (use inverse eq)
+# Also using x, y, z but not intensity now
+# Changing resolution to 0.2m
+JOB_DIR=results/Log_2021-01-03_V0
+python train_Buick.py --job_dir $JOB_DIR
 
 
 
