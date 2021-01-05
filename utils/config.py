@@ -187,6 +187,10 @@ class Config:
     saving = True
     saving_path = None
 
+    sequence_si = [1100, 1250, 1200]
+
+    sequence_ei = [8600, 11000, 10200]
+
     def __init__(self):
         """
         Class Initialyser
@@ -262,6 +266,12 @@ class Config:
 
                 elif line_info[0] == 'class_w':
                     self.class_w = [float(w) for w in line_info[2:]]
+
+                elif line_info[0] == 'sequence_si':
+                    self.sequence_si = [float(w) for w in line_info[2:]]
+
+                elif line_info[0] == 'sequence_ei':
+                    self.sequence_ei = [float(w) for w in line_info[2:]]
 
                 elif hasattr(self, line_info[0]):
                     attr_type = type(getattr(self, line_info[0]))
@@ -364,6 +374,13 @@ class Config:
             text_file.write('segloss_balance = {:s}\n'.format(self.segloss_balance))
             text_file.write('class_w =')
             for a in self.class_w:
+                text_file.write(' {:.6f}'.format(a))
+            text_file.write('\n')
+            text_file.write('class_w =')
+            for a in self.sequence_si:
+                text_file.write(' {:.6f}'.format(a))
+            text_file.write('\n')
+            for a in self.sequence_ei:
                 text_file.write(' {:.6f}'.format(a))
             text_file.write('\n')
             text_file.write('deform_fitting_mode = {:s}\n'.format(self.deform_fitting_mode))

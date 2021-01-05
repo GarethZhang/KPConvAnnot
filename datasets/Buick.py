@@ -596,6 +596,20 @@ class BuickDataset(PointCloudDataset):
             T_map_velo_loc[:,:3, 3] = (poses_all[:,1:].reshape((-1, 4, 3))[:, 3,:3])
             self.poses.append([T_map_velo_loc[j] for j in range(T_map_velo_loc.shape[0]) if j in self.annotation_indices[i]])
 
+        # pick out start and end frames based on config
+        frames_updated = [[frame for j, frame in enumerate(self.frames[i])
+                           if j >= self.config.sequence_si[i] and j <= self.config.sequence_ei[i]]
+                          for i, seq in enumerate(self.sequences)]
+        annotated_frames_updated = [[annotated_frame for j, annotated_frame in enumerate(self.annotated_frames[i])
+                           if j >= self.config.sequence_si[i] and j <= self.config.sequence_ei[i]]
+                          for i, seq in enumerate(self.sequences)]
+        poses_updated = [[pose for j, pose in enumerate(self.poses[i])
+                           if j >= self.config.sequence_si[i] and j <= self.config.sequence_ei[i]]
+                          for i, seq in enumerate(self.sequences)]
+        self.frames = frames_updated
+        self.annotated_frames = annotated_frames_updated
+        self.poses = poses_updated
+
         ###################################
         # Prepare the indices of all frames
         ###################################
@@ -643,9 +657,16 @@ class BuickDataset(PointCloudDataset):
                     # Read all frames
                     for f_ind, frame_name in enumerate(seq_frames):
 
+                        frame_name = join(seq_path, self.lidar, frame_name)
+                        frame_data = read_ply(frame_name)
+                        frame_x = frame_data['x']
+
                         annotation_fname = join(seq_path, self.annotation, seq_annotations[f_ind])
                         annotation_data = read_ply(annotation_fname)
                         sem_labels = annotation_data['classif'] # TODO not sure why label field is used here
+
+                        if frame_x.shape[0] != sem_labels.shape[0]:
+                            print(frame_x.shape[0], sem_labels.shape[0], s_ind, frame_name, seq_annotations[f_ind])
 
                         # Get present labels and their frequency
                         unique, counts = np.unique(sem_labels, return_counts=True)

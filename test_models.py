@@ -123,7 +123,7 @@ if __name__ == '__main__':
                         help='Job directory')
     parser.add_argument('--log_dir', type=str, default='results/Log_2020-04-22_18-29-55', metavar='N',
                         help='Log directory')
-    parser.add_argument('--chkp', type=str, default='', metavar='N',
+    parser.add_argument('--chkp', type=str, default='', metavar='N', required=False,
                         help='Manual checkpoint selection')
 
     args = parser.parse_args()
