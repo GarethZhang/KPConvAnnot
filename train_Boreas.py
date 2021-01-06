@@ -29,7 +29,7 @@ import sys
 import torch
 
 # Dataset
-from datasets.Buick import *
+from datasets.Boreas import *
 from torch.utils.data import DataLoader
 
 from utils.config import Config
@@ -52,11 +52,11 @@ def _init_saving(args):
         os.makedirs('{}/backup'.format(chkp_dir))
 
     os.system('cp models/architectures.py {}/backup/architectures.py.backup'.format(chkp_dir))
-    os.system('cp train_Buick.py {}/backup/train_Buick.py.backup'.format(chkp_dir))
+    os.system('cp train_Boreas.py {}/backup/train_Boreas.py.backup'.format(chkp_dir))
     os.system('cp test_models.py {}/backup/test_models.py.backup'.format(chkp_dir))
 
 
-class BuickConfig(Config):
+class BoreasConfig(Config):
     """
     Override the parameters you want to modify for this dataset
     """
@@ -66,7 +66,7 @@ class BuickConfig(Config):
     ####################
 
     # Dataset name
-    dataset = 'Buick'
+    dataset = 'Boreas'
 
     # Number of classes in the dataset (This value is overwritten by dataset class when Initializating dataset).
     num_classes = 5
@@ -116,14 +116,14 @@ class BuickConfig(Config):
     max_val_points = 180000
 
     # Number of batch
-    batch_num = 8
-    val_batch_num = 8
+    batch_num = 2
+    val_batch_num = 2
 
     # Number of kernel points
     num_kernel_points = 15
 
     # Size of the first subsampling grid in meter
-    first_subsampling_dl = 0.2
+    first_subsampling_dl = 0.1
 
     # Radius of convolution in "number grid cell". (2.5 is the standard value)
     conv_radius = 2.5
@@ -142,7 +142,7 @@ class BuickConfig(Config):
 
     # Choice of input features
     first_features_dim = 64
-    in_features_dim = 5
+    in_features_dim = 4
 
     # Can the network learn modulations
     modulated = False
@@ -205,6 +205,10 @@ class BuickConfig(Config):
     #            0.886, 3.863, 0.869, 1.209, 0.594, 3.780, 1.129, 5.000, 5.000]
     # class_w = [4.32, 1.00, 20.82, 29.08]
     class_w = [0.23843341, 0.11460648, 0.5228806 , 0.61805074]
+
+    sequence_si = [1100, 1250, 1200]
+
+    sequence_ei = [8600, 11000, 10200]
 
     # Do we nee to save convergence
     saving = True
@@ -270,7 +274,7 @@ if __name__ == '__main__':
     print('****************')
 
     # Initialize configuration class
-    config = BuickConfig()
+    config = BoreasConfig()
     if previous_training_path:
         config.load(os.path.join('results', previous_training_path))
         config.saving_path = None
@@ -284,26 +288,26 @@ if __name__ == '__main__':
     _init_saving(args)
 
     # Initialize datasets
-    training_dataset = BuickDataset(config, set='training',
+    training_dataset = BoreasDataset(config, set='training',
                                     balance_classes=True)
-    test_dataset = BuickDataset(config, set='validation',
+    test_dataset = BoreasDataset(config, set='validation',
                                 balance_classes=False)
 
     # Initialize samplers
-    training_sampler = BuickSampler(training_dataset)
-    test_sampler = BuickSampler(test_dataset)
+    training_sampler = BoreasSampler(training_dataset)
+    test_sampler = BoreasSampler(test_dataset)
 
     # Initialize the dataloader
     training_loader = DataLoader(training_dataset,
                                  batch_size=1,
                                  sampler=training_sampler,
-                                 collate_fn=BuickCollate,
+                                 collate_fn=BoreasCollate,
                                  num_workers=config.input_threads,
                                  pin_memory=True)
     test_loader = DataLoader(test_dataset,
                              batch_size=1,
                              sampler=test_sampler,
-                             collate_fn=BuickCollate,
+                             collate_fn=BoreasCollate,
                              num_workers=config.input_threads,
                              pin_memory=True)
 

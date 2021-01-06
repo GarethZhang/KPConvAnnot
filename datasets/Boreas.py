@@ -54,18 +54,19 @@ from utils.config import bcolors
 #       \******************************/
 
 
-class BuickDataset(PointCloudDataset):
-    """Class to handle Buick dataset."""
+class BoreasDataset(PointCloudDataset):
+    """Class to handle Boreas dataset."""
 
     def __init__(self, config, set='training', balance_classes=True):
-        PointCloudDataset.__init__(self, 'Buick')
+        PointCloudDataset.__init__(self, 'Boreas')
 
         ##########################
         # Parameters for the files
         ##########################
 
         # Dataset folder
-        self.path = '/raid/gzh/Data/Buick' # path on docker container
+        # self.path = '/raid/gzh/Data/Boreas' # path on docker container
+        self.path = '/raid/gzh/Data/Boreas'
         self.lidar_dt = 0.1
         self.skip = 1
 
@@ -80,11 +81,11 @@ class BuickDataset(PointCloudDataset):
 
         # Get a list of sequences (0 - 31)
         if self.set == 'training':
-            self.sequences = [self.seq_fname[i] for i in range(self.num_seq) if i == 0]
+            self.sequences = [self.seq_fname[i] for i in range(self.num_seq) if i == 0 or i == 1]
         elif self.set == 'validation':
-            self.sequences = [self.seq_fname[i] for i in range(self.num_seq) if i == 1]
+            self.sequences = [self.seq_fname[i] for i in range(self.num_seq) if i == 2]
         elif self.set == 'test':
-            self.sequences = [self.seq_fname[i] for i in range(self.num_seq) if i == 1]
+            self.sequences = [self.seq_fname[i] for i in range(self.num_seq) if i == 2]
         else:
             raise ValueError('Unknown set for Oxford data: ', self.set)
         print(self.sequences)
@@ -103,13 +104,14 @@ class BuickDataset(PointCloudDataset):
             annotated_frames = np.sort([vf for vf in listdir(velo_annotated_path) if vf.endswith('.ply')])
 
             # save the timestamp into a list for search up
-            annotation_t = [annotated_frame.split('_')[2].split('.')[0] for annotated_frame in annotated_frames]
+            # timestamp is required for first 11 digits, which matches up to .x seconds
+            annotation_t = [annotated_frame.split('_')[2].split('.')[0][:14] for annotated_frame in annotated_frames]
             self.annotation_ts.append(annotation_t)
 
             velo_path = join(self.path, 'sequences', seq, self.lidar)
-            frames = np.sort([vf for vf in listdir(velo_path) if vf.endswith('.npy')])
+            frames = np.sort([vf for vf in listdir(velo_path) if vf.endswith('.ply')])
 
-            frame_t = [(frame.split('_')[0] + frame.split('_')[1].split('.')[0]) for frame in frames]
+            frame_t = [frame.split('_')[2].split('.')[0][:14] for frame in frames]
             self.frame_ts.append(frame_t)
 
             # Cross-referencing velodyne and annotations to make sure a one-to-one match
@@ -137,7 +139,7 @@ class BuickDataset(PointCloudDataset):
             #         print(frame, self.annotated_frames[i][j])
             #         print("Frame and annotation must have same number of points!")
 
-        print('Seq {:s} has {}/{} valid velodyne frames'.format(seq, len(self.frames[i]), len(frames)))
+            print('Seq {:s} has {}/{} valid velodyne frames'.format(seq, len(self.frames[i]), len(frames)))
 
         ###########################
         # Object classes parameters
@@ -310,13 +312,13 @@ class BuickDataset(PointCloudDataset):
                     label_file = join(seq_path, self.annotation, self.annotated_frames[s_ind][f_ind - f_inc])
 
                 # Read points
-                frame_points = np.load(velo_file).astype(np.float32)
-                points = frame_points.reshape((-1, 4))
-                frame_points[:,3] = frame_points[:,3] / 255.0 # scale down intensity channel
+                frame_data = read_ply(velo_file)
+                points = np.vstack((frame_data['x'], frame_data['y'], frame_data['z'])).T
+                points = np.hstack((points, np.ones_like(points[:,0:1]))).astype(np.float32) # TODO latent intensity
 
                 if self.set == 'test':
                     # Fake labels
-                    sem_labels = np.zeros((frame_points.shape[0],), dtype=np.int32)
+                    sem_labels = np.zeros((points.shape[0],), dtype=np.int32)
                 else:
                     # Read labels
                     annotation_data = read_ply(label_file)
@@ -468,7 +470,7 @@ class BuickDataset(PointCloudDataset):
             stacked_features = np.hstack((stacked_features, features[:, 2:]))
         elif self.config.in_features_dim == 4:
             # Use all coordinates
-            stacked_features = np.hstack((stacked_features, features[:3]))
+            stacked_features = np.hstack((stacked_features, features[:, :3]))
         elif self.config.in_features_dim == 5:
             # Use all coordinates + reflectance
             stacked_features = np.hstack((stacked_features, features))
@@ -586,8 +588,27 @@ class BuickDataset(PointCloudDataset):
             seq_folder = join(self.path, 'sequences', seq)
 
             # Read poses
-            poses_all = np.load(join(seq_folder, 'poses.npy')).astype(np.float32)
-            self.poses.append([poses_all[j] for j in range(poses_all.shape[0]) if j in self.frames_indices[i]])
+            # poses_all = np.load(join(seq_folder, 'poses.npy')).astype(np.float32)
+            poses_all = np.loadtxt(join(seq_folder, 'map_poses.txt')).astype(np.float32)
+            num_poses_all = poses_all.shape[0]
+            T_map_velo_loc = np.expand_dims(np.identity(4, dtype=np.float32), axis=0).repeat(num_poses_all, axis=0)
+            T_map_velo_loc[:,:3,:3] = poses_all[:,1:].reshape((-1, 4, 3))[:,:3,:3]
+            T_map_velo_loc[:,:3, 3] = (poses_all[:,1:].reshape((-1, 4, 3))[:, 3,:3])
+            self.poses.append([T_map_velo_loc[j] for j in range(T_map_velo_loc.shape[0]) if j in self.annotation_indices[i]])
+
+        # pick out start and end frames based on config
+        frames_updated = [[frame for j, frame in enumerate(self.frames[i])
+                           if j >= self.config.sequence_si[i] and j <= self.config.sequence_ei[i]]
+                          for i, seq in enumerate(self.sequences)]
+        annotated_frames_updated = [[annotated_frame for j, annotated_frame in enumerate(self.annotated_frames[i])
+                           if j >= self.config.sequence_si[i] and j <= self.config.sequence_ei[i]]
+                          for i, seq in enumerate(self.sequences)]
+        poses_updated = [[pose for j, pose in enumerate(self.poses[i])
+                           if j >= self.config.sequence_si[i] and j <= self.config.sequence_ei[i]]
+                          for i, seq in enumerate(self.sequences)]
+        self.frames = frames_updated
+        self.annotated_frames = annotated_frames_updated
+        self.poses = poses_updated
 
         ###################################
         # Prepare the indices of all frames
@@ -603,7 +624,7 @@ class BuickDataset(PointCloudDataset):
         if self.set in ['training', 'validation']:
 
             class_frames_bool = np.zeros((0, self.num_classes), dtype=np.bool)
-            self.class_proportions = np.zeros((self.num_classes,), dtype=np.int32)
+            self.class_proportions = np.zeros((self.num_classes,), dtype=np.int64)
 
             for s_ind, (seq, seq_frames) in enumerate(zip(self.sequences, self.frames)):
                 seq_annotations = self.annotated_frames[s_ind]
@@ -628,7 +649,7 @@ class BuickDataset(PointCloudDataset):
                     seq_class_frames = np.zeros((len(seq_frames), self.num_classes), dtype=np.bool)
 
                     # Proportion of each class
-                    seq_proportions = np.zeros((self.num_classes,), dtype=np.int32)
+                    seq_proportions = np.zeros((self.num_classes,), dtype=np.int64)
 
                     # Sequence path
                     seq_path = join(self.path, 'sequences', seq)
@@ -636,9 +657,16 @@ class BuickDataset(PointCloudDataset):
                     # Read all frames
                     for f_ind, frame_name in enumerate(seq_frames):
 
+                        frame_name = join(seq_path, self.lidar, frame_name)
+                        frame_data = read_ply(frame_name)
+                        frame_x = frame_data['x']
+
                         annotation_fname = join(seq_path, self.annotation, seq_annotations[f_ind])
                         annotation_data = read_ply(annotation_fname)
                         sem_labels = annotation_data['classif'] # TODO not sure why label field is used here
+
+                        if frame_x.shape[0] != sem_labels.shape[0]:
+                            print(frame_x.shape[0], sem_labels.shape[0], s_ind, frame_name, seq_annotations[f_ind])
 
                         # Get present labels and their frequency
                         unique, counts = np.unique(sem_labels, return_counts=True)
@@ -733,10 +761,10 @@ class BuickDataset(PointCloudDataset):
         return poses
 
 
-class BuickSampler(Sampler):
-    """Sampler for Buick"""
+class BoreasSampler(Sampler):
+    """Sampler for Boreas"""
 
-    def __init__(self, dataset: BuickDataset):
+    def __init__(self, dataset: BoreasDataset):
         Sampler.__init__(self, dataset)
 
         # Dataset used by the sampler (no copy is made in memory)
@@ -756,25 +784,86 @@ class BuickSampler(Sampler):
         (input sphere) in epoch instead of the list of point indices
         """
 
-        # Initiate current epoch ind
-        self.dataset.epoch_i *= 0
-        self.dataset.epoch_inds *= 0
+        if self.dataset.balance_classes:
 
-        # Number of sphere centers taken per class in each cloud
-        num_centers = self.dataset.epoch_inds.shape[0]
+            # Initiate current epoch ind
+            self.dataset.epoch_i *= 0
+            self.dataset.epoch_inds *= 0
+            self.dataset.epoch_labels *= 0
 
-        # Get the list of indices to generate thanks to potentials
-        if num_centers < self.dataset.potentials.shape[0]:
-            _, gen_indices = torch.topk(self.dataset.potentials, num_centers, largest=False, sorted=True)
+            # Number of sphere centers taken per class in each cloud
+            num_centers = self.dataset.epoch_inds.shape[0]
+
+            # Generate a list of indices balancing classes and respecting potentials
+            gen_indices = []
+            gen_classes = []
+            for i, c in enumerate(self.dataset.label_values):
+                if c not in self.dataset.ignored_labels:
+
+                    # Get the potentials of the frames containing this class
+                    class_potentials = self.dataset.potentials[self.dataset.class_frames[i]]
+
+                    # Get the indices to generate thanks to potentials
+                    used_classes = self.dataset.num_classes - len(self.dataset.ignored_labels)
+                    class_n = num_centers // used_classes + 1
+                    if class_n < class_potentials.shape[0]:
+                        _, class_indices = torch.topk(class_potentials, class_n, largest=False)
+                    else:
+                        class_indices = torch.zeros((0,), dtype=torch.int32)
+                        while class_indices.shape < class_n:
+                            new_class_inds = torch.randperm(class_potentials.shape[0])
+                            class_indices = torch.cat((class_indices, new_class_inds), dim=0)
+                        class_indices = class_indices[:class_n]
+                    class_indices = self.dataset.class_frames[i][class_indices]
+
+                    # Add the indices to the generated ones
+                    gen_indices.append(class_indices)
+                    gen_classes.append(class_indices * 0 + c)
+
+                    # Update potentials
+                    update_inds = torch.unique(class_indices)
+                    self.dataset.potentials[update_inds] = torch.ceil(self.dataset.potentials[update_inds])
+                    self.dataset.potentials[update_inds] += torch.from_numpy(np.random.rand(update_inds.shape[0]) * 0.1 + 0.1)
+
+            # Stack the chosen indices of all classes
+            gen_indices = torch.cat(gen_indices, dim=0)
+            gen_classes = torch.cat(gen_classes, dim=0)
+
+            # Shuffle generated indices
+            rand_order = torch.randperm(gen_indices.shape[0])[:num_centers]
+            gen_indices = gen_indices[rand_order]
+            gen_classes = gen_classes[rand_order]
+
+            # Update potentials (Change the order for the next epoch)
+            #self.dataset.potentials[gen_indices] = torch.ceil(self.dataset.potentials[gen_indices])
+            #self.dataset.potentials[gen_indices] += torch.from_numpy(np.random.rand(gen_indices.shape[0]) * 0.1 + 0.1)
+
+            # Update epoch inds
+            self.dataset.epoch_inds += gen_indices
+            self.dataset.epoch_labels += gen_classes.type(torch.int32)
+
         else:
-            gen_indices = torch.randperm(self.dataset.potentials.shape[0])
 
-        # Update potentials (Change the order for the next epoch)
-        self.dataset.potentials[gen_indices] = torch.ceil(self.dataset.potentials[gen_indices])
-        self.dataset.potentials[gen_indices] += torch.from_numpy(np.random.rand(gen_indices.shape[0]) * 0.1 + 0.1)
+            # Initiate current epoch ind
+            self.dataset.epoch_i *= 0
+            self.dataset.epoch_inds *= 0
+            self.dataset.epoch_labels *= 0
 
-        # Update epoch inds
-        self.dataset.epoch_inds += gen_indices
+            # Number of sphere centers taken per class in each cloud
+            num_centers = self.dataset.epoch_inds.shape[0]
+
+            # Get the list of indices to generate thanks to potentials
+            if num_centers < self.dataset.potentials.shape[0]:
+                _, gen_indices = torch.topk(self.dataset.potentials, num_centers, largest=False, sorted=True)
+            else:
+                gen_indices = torch.randperm(self.dataset.potentials.shape[0])
+
+            # Update potentials (Change the order for the next epoch)
+            self.dataset.potentials[gen_indices] = torch.ceil(self.dataset.potentials[gen_indices])
+            self.dataset.potentials[gen_indices] += torch.from_numpy(np.random.rand(gen_indices.shape[0]) * 0.1 + 0.1)
+
+            # Update epoch inds
+            self.dataset.epoch_inds += gen_indices
 
         # Generator loop
         for i in range(self.N):
@@ -1175,8 +1264,8 @@ class BuickSampler(Sampler):
         return
 
 
-class BuickCustomBatch:
-    """Custom batch definition with memory pinning for Buick"""
+class BoreasCustomBatch:
+    """Custom batch definition with memory pinning for Boreas"""
 
     def __init__(self, input_list):
         # Get rid of batch dimension
@@ -1315,8 +1404,8 @@ class BuickCustomBatch:
         return all_p_list
 
 
-def BuickCollate(batch_data):
-    return BuickCustomBatch(batch_data)
+def BoreasCollate(batch_data):
+    return BoreasCustomBatch(batch_data)
 
 
 def debug_timing(dataset, loader):

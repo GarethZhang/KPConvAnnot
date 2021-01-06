@@ -618,8 +618,14 @@ class ModelTester:
                         if f_ind % 20 == 0:
                             seq_path = join(test_loader.dataset.path, 'sequences', test_loader.dataset.sequences[s_ind])
                             velo_file = join(seq_path, 'velodyne', test_loader.dataset.frames[s_ind][f_ind])
-                            frame_data = read_ply(velo_file)
-                            frame_points = np.vstack((frame_data['x'], frame_data['y'], frame_data['z'])).T
+                            if config.dataset == 'Buick':
+                                frame_points = np.load(velo_file).astype(np.float32)
+                                frame_points = frame_points.reshape((-1, 4))
+                            elif config.dataset == 'Boreas':
+                                frame_data = read_ply(velo_file)
+                                frame_points = np.vstack((frame_data['x'], frame_data['y'], frame_data['z'])).T
+                            else:
+                                assert False, "Dataset not supported"
                             # frame_points = frame_points.reshape((-1, 4))
                             predpath = join(test_path, pred_folder, filename[:-4] + '.ply')
                             #pots = test_loader.dataset.f_potentials[s_ind][f_ind]
