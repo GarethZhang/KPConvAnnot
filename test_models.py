@@ -34,6 +34,7 @@ from datasets.ModelNet40 import *
 from datasets.S3DIS import *
 from datasets.SemanticKitti import *
 from datasets.Buick import *
+from datasets.Boreas import *
 from torch.utils.data import DataLoader
 
 from utils.config import Config
@@ -192,6 +193,8 @@ if __name__ == '__main__':
     config.input_threads = 10
     config.val_batch_num = 2
     config.dataset_task = 'slam_segmentation'
+    config.class_w = [0.23843341, 0.11460648, 0.5228806 , 0.61805074]
+
 
     ##############
     # Prepare Data
@@ -235,6 +238,10 @@ if __name__ == '__main__':
         test_dataset = BuickDataset(config, set=set, balance_classes=False)
         test_sampler = BuickSampler(test_dataset)
         collate_fn = BuickCollate
+    elif config.dataset == 'Boreas':
+        test_dataset = BoreasDataset(config, set=set, balance_classes=False)
+        test_sampler = BoreasSampler(test_dataset)
+        collate_fn = BoreasCollate
     else:
         raise ValueError('Unsupported dataset : ' + config.dataset)
 

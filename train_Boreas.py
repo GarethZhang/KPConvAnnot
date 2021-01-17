@@ -116,14 +116,14 @@ class BoreasConfig(Config):
     max_val_points = 180000
 
     # Number of batch
-    batch_num = 2
-    val_batch_num = 2
+    batch_num = 8
+    val_batch_num = 8
 
     # Number of kernel points
     num_kernel_points = 15
 
     # Size of the first subsampling grid in meter
-    first_subsampling_dl = 0.1
+    first_subsampling_dl = 0.2
 
     # Radius of convolution in "number grid cell". (2.5 is the standard value)
     conv_radius = 2.5
@@ -142,7 +142,7 @@ class BoreasConfig(Config):
 
     # Choice of input features
     first_features_dim = 64
-    in_features_dim = 4
+    in_features_dim = 3
 
     # Can the network learn modulations
     modulated = False

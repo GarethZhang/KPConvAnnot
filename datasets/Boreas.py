@@ -313,8 +313,8 @@ class BoreasDataset(PointCloudDataset):
 
                 # Read points
                 frame_data = read_ply(velo_file)
-                points = np.vstack((frame_data['x'], frame_data['y'], frame_data['z'])).T
-                points = np.hstack((points, np.ones_like(points[:,0:1]))).astype(np.float32) # TODO latent intensity
+                points = np.vstack((frame_data['x'], frame_data['y'], frame_data['z'], frame_data['f0'])).T
+                points[:,3] = points[:,3] / 255.0
 
                 if self.set == 'test':
                     # Fake labels

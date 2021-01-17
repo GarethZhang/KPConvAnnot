@@ -778,7 +778,7 @@ class ModelTrainer:
                     velo_file = join(seq_path, 'velodyne', val_loader.dataset.frames[s_ind][f_ind])
                     if config.dataset == 'Buick':
                         frame_points = np.load(velo_file)
-                    elif config.dataset_task == 'Boreas':
+                    elif config.dataset == 'Boreas':
                         frame_data = read_ply(velo_file)
                         frame_points = np.vstack((frame_data['x'], frame_data['y'], frame_data['z'])).T
                     else:
