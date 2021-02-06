@@ -53,6 +53,7 @@ def _init_saving(args):
 
     os.system('cp models/architectures.py {}/backup/architectures.py.backup'.format(chkp_dir))
     os.system('cp train_Boreas.py {}/backup/train_Boreas.py.backup'.format(chkp_dir))
+    os.system('cp datasets/Boreas.py {}/backup/Boreas.py.backup'.format(chkp_dir))
     os.system('cp test_models.py {}/backup/test_models.py.backup'.format(chkp_dir))
 
 

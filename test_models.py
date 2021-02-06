@@ -194,7 +194,11 @@ if __name__ == '__main__':
     config.val_batch_num = 2
     config.dataset_task = 'slam_segmentation'
     config.class_w = [0.23843341, 0.11460648, 0.5228806 , 0.61805074]
+    # config.dataset = 'Buick'
 
+    # TODO temporary fixate to evaluate on all available frames
+    config.sequence_si = [0, 0, 0]
+    config.sequence_ei = [1e6, 1e6, 1e6]
 
     ##############
     # Prepare Data
@@ -239,7 +243,7 @@ if __name__ == '__main__':
         test_sampler = BuickSampler(test_dataset)
         collate_fn = BuickCollate
     elif config.dataset == 'Boreas':
-        test_dataset = BoreasDataset(config, set=set, balance_classes=False)
+        test_dataset = BoreasDataset(config, set=set, balance_classes=False, random_potentials=False)
         test_sampler = BoreasSampler(test_dataset)
         collate_fn = BoreasCollate
     else:

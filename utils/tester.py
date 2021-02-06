@@ -574,6 +574,7 @@ class ModelTester:
                     frame_labels = labels_list[b_i]
                     s_ind = f_inds[b_i, 0]
                     f_ind = f_inds[b_i, 1]
+                    print(f_ind)
 
                     # Project predictions on the frame points
                     proj_probs = probs[proj_inds]
@@ -615,7 +616,7 @@ class ModelTester:
                                                                                  axis=1)].astype(np.int32)
 
                         # Save some of the frame pots
-                        if f_ind % 20 == 0:
+                        if f_ind % 1 == 0:
                             seq_path = join(test_loader.dataset.path, 'sequences', test_loader.dataset.sequences[s_ind])
                             velo_file = join(seq_path, 'velodyne', test_loader.dataset.frames[s_ind][f_ind])
                             if config.dataset == 'Buick':
@@ -644,9 +645,9 @@ class ModelTester:
                             lbl_names = [test_loader.dataset.label_to_names[l]
                                          for l in test_loader.dataset.label_values
                                          if l not in test_loader.dataset.ignored_labels]
-                            write_ply(probpath,
-                                      [frame_points[:, :3], frame_probs_uint8],
-                                      ['x', 'y', 'z'] + lbl_names)
+                            # write_ply(probpath,
+                            #           [frame_points[:, :3], frame_probs_uint8],
+                            #           ['x', 'y', 'z'] + lbl_names)
 
                         # keep frame preds in memory
                         all_f_preds[s_ind][f_ind] = frame_preds

@@ -57,7 +57,7 @@ from utils.config import bcolors
 class BoreasDataset(PointCloudDataset):
     """Class to handle Boreas dataset."""
 
-    def __init__(self, config, set='training', balance_classes=True):
+    def __init__(self, config, set='training', balance_classes=True, random_potentials=True):
         PointCloudDataset.__init__(self, 'Boreas')
 
         ##########################
@@ -75,6 +75,7 @@ class BoreasDataset(PointCloudDataset):
 
         # Training or test set
         self.set = set
+        self.random_potentials = random_potentials
 
         self.seq_fname = sorted([i for i in os.listdir(join(self.path, 'sequences')) if os.path.isdir(join(self.path, 'sequences', i))])
         self.num_seq = len(self.seq_fname)
@@ -190,7 +191,10 @@ class BoreasDataset(PointCloudDataset):
         self.batch_limit.share_memory_()
 
         # Initialize frame potentials
-        self.potentials = torch.from_numpy(np.random.rand(self.all_inds.shape[0]) * 0.1 + 0.1)
+        if self.random_potentials:
+            self.potentials = torch.from_numpy(np.random.rand(self.all_inds.shape[0]) * 0.1 + 0.1)
+        else:
+            self.potentials = torch.from_numpy(np.arange(self.all_inds.shape[0]).astype(np.float64))
         self.potentials.share_memory_()
 
         # If true, the same amount of frames is picked per class
@@ -210,7 +214,8 @@ class BoreasDataset(PointCloudDataset):
         if set == 'training':
             N = int(np.ceil(config.epoch_steps * self.batch_num * 1.1))
         else:
-            N = int(np.ceil(config.validation_size * self.batch_num * 1.1))
+            N = config.validation_size
+            # N = int(np.ceil(config.validation_size * self.batch_num * 1.1))
         self.epoch_i = torch.from_numpy(np.zeros((1,), dtype=np.int64)) # current index
         self.epoch_inds = torch.from_numpy(np.zeros((N,), dtype=np.int64)) # indices of point cloud
         self.epoch_labels = torch.from_numpy(np.zeros((N,), dtype=np.int32))
@@ -859,8 +864,11 @@ class BoreasSampler(Sampler):
                 gen_indices = torch.randperm(self.dataset.potentials.shape[0])
 
             # Update potentials (Change the order for the next epoch)
-            self.dataset.potentials[gen_indices] = torch.ceil(self.dataset.potentials[gen_indices])
-            self.dataset.potentials[gen_indices] += torch.from_numpy(np.random.rand(gen_indices.shape[0]) * 0.1 + 0.1)
+            if self.dataset.random_potentials:
+                self.dataset.potentials[gen_indices] = torch.ceil(self.dataset.potentials[gen_indices])
+                self.dataset.potentials[gen_indices] += torch.from_numpy(np.random.rand(gen_indices.shape[0]) * 0.1 + 0.1)
+            else:
+                self.dataset.potentials[gen_indices] += torch.from_numpy(np.array(100000.0, dtype=np.float64))
 
             # Update epoch inds
             self.dataset.epoch_inds += gen_indices
