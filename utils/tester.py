@@ -574,7 +574,6 @@ class ModelTester:
                     frame_labels = labels_list[b_i]
                     s_ind = f_inds[b_i, 0]
                     f_ind = f_inds[b_i, 1]
-                    print(f_ind)
 
                     # Project predictions on the frame points
                     proj_probs = probs[proj_inds]
@@ -656,7 +655,7 @@ class ModelTester:
                     else:
 
                         # Save some of the frame preds
-                        if f_inds[b_i, 1] % 100 == 0:
+                        if f_inds[b_i, 1] % 1 == 0:
 
                             # Insert false columns for ignored labels
                             for l_ind, label_value in enumerate(test_loader.dataset.label_values):
@@ -670,8 +669,18 @@ class ModelTester:
                             # Load points
                             seq_path = join(test_loader.dataset.path, 'sequences', test_loader.dataset.sequences[s_ind])
                             velo_file = join(seq_path, 'velodyne', test_loader.dataset.frames[s_ind][f_ind])
-                            frame_points = np.load(velo_file).astype(np.float32)
-                            frame_points = frame_points.reshape((-1, 4))
+                            if config.dataset == 'Buick':
+                                frame_points = np.load(velo_file).astype(np.float32)
+                                frame_points = frame_points.reshape((-1, 4))
+                            elif config.dataset == 'Boreas':
+                                frame_data = read_ply(velo_file)
+                                frame_points = np.vstack((frame_data['x'], frame_data['y'], frame_data['z'])).T
+                            else:
+                                assert False, "Dataset not supported"
+                            # seq_path = join(test_loader.dataset.path, 'sequences', test_loader.dataset.sequences[s_ind])
+                            # velo_file = join(seq_path, 'velodyne', test_loader.dataset.frames[s_ind][f_ind])
+                            # frame_points = np.load(velo_file).astype(np.float32)
+                            # frame_points = frame_points.reshape((-1, 4))
                             predpath = join(test_path, pred_folder, filename[:-4] + '.ply')
                             #pots = test_loader.dataset.f_potentials[s_ind][f_ind]
                             pots = np.zeros((0,))

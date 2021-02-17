@@ -10,6 +10,24 @@ import torch.optim as optim
 import numpy as np
 from scipy.spatial.transform import Rotation
 from mpl_toolkits.mplot3d import Axes3D
+from numba import jit, float32, int64
+
+@jit(float32[:](float32[:,:], float32[:,:]), nogil=True, nopython=True)
+def compute_criteria(loc_translation, map_translation):
+    num_velo = loc_translation.shape[0]
+    num_map_poses = map_translation.shape[0]
+    criteria = np.zeros(num_velo, dtype=np.float32)
+    for i in range(num_velo):
+        loc_translation_i = loc_translation[i]
+        for j in range(num_map_poses):
+            map_translation_j = map_translation[j]
+            dist_ij = (loc_translation_i[0] - map_translation_j[0]) ** 2 + \
+                      (loc_translation_i[1] - map_translation_j[1]) ** 2 + \
+                      (loc_translation_i[2] - map_translation_j[2]) ** 2
+            if dist_ij <= 5 ** 2:
+                criteria[i] = 1
+                break
+    return criteria
 
 def quat2mat(quat):
     x, y, z, w = quat[:, 0], quat[:, 1], quat[:, 2], quat[:, 3]

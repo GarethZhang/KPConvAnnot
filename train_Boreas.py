@@ -110,8 +110,8 @@ class BoreasConfig(Config):
     ###################
 
     # Radius of the input sphere
-    in_radius = 100.0
-    val_radius = 100.0
+    in_radius = 150.0
+    val_radius = 150.0
     n_frames = 1
     max_in_points = 180000
     max_val_points = 180000
@@ -143,7 +143,7 @@ class BoreasConfig(Config):
 
     # Choice of input features
     first_features_dim = 64
-    in_features_dim = 3
+    in_features_dim = 5
 
     # Can the network learn modulations
     modulated = False
@@ -207,9 +207,9 @@ class BoreasConfig(Config):
     # class_w = [4.32, 1.00, 20.82, 29.08]
     class_w = [0.23843341, 0.11460648, 0.5228806 , 0.61805074]
 
-    sequence_si = [1100, 1250, 1200]
+    sequence_si = [1100, 1250, 1200, 650]
 
-    sequence_ei = [8600, 11000, 10200]
+    sequence_ei = [8600, 11000, 10200, 7650]
 
     # Do we nee to save convergence
     saving = True
@@ -231,6 +231,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--job_dir', type=str, default='results/Log_2020-04-22_18-29-55', metavar='N',
                         help='Job directory')
+    parser.add_argument('--slurm_dir', type=str, default='', metavar='N',
+                        help='SLURM directory')
 
     args = parser.parse_args()
 
