@@ -16,10 +16,10 @@ class Config:
     # Input parameters
     ##################
 
-    # current working directory
-    data_dir = '/home/gzh/Documents/research/src/KPConvAnnot/test/Log_2021-01-15_V0.5/val_predictions'
-
-    save_dir = '/home/gzh/Documents/research/src/KPConvAnnot/test/Log_2021-01-15_V0.5'
+    # # current working directory
+    # data_dir = '/home/gzh/Documents/research/src/KPConvAnnot/test/Log_2021-01-15_V0.5/val_predictions'
+    #
+    # save_dir = '/home/gzh/Documents/research/src/KPConvAnnot/test/Log_2021-01-15_V0.5'
 
     pred_fname = 'pred_labels.txt'
 
@@ -29,16 +29,24 @@ class Config:
     BIGGER_SIZE = 22
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--job_dir', type=str, default='results/Log_2020-04-22_18-29-55', metavar='N',
+                        help='Job directory')
+
+    args = parser.parse_args()
+
+    data_dir = args.job_dir + '/predictions'
+    save_dir = args.job_dir
 
     config = Config()
 
-    fnames = sorted(os.listdir(config.data_dir))
+    fnames = sorted(os.listdir(data_dir))
 
-    pred_labels_fname = os.path.join(config.save_dir, config.pred_fname)
+    pred_labels_fname = os.path.join(save_dir, config.pred_fname)
 
     with open(pred_labels_fname, "a") as pred_labels_file:
         for fname in tqdm(fnames):
-            data = read_ply(os.path.join(config.data_dir, fname))
+            data = read_ply(os.path.join(data_dir, fname))
             pred = np.array(data['pre']).astype(np.int32)
             pred_str = [str(pred_i) for pred_i in pred]
             pred_labels_file.writelines(' '.join(pred_str) + '\n')
