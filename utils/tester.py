@@ -463,7 +463,7 @@ class ModelTester:
 
         return
 
-    def slam_segmentation_test(self, net, test_loader, config, num_votes=100, debug=True):
+    def slam_segmentation_test(self, net, test_loader, config, args, num_votes=100, debug=True):
         """
         Test method for slam segmentation models
         """
@@ -485,7 +485,7 @@ class ModelTester:
         test_path = None
         report_path = None
         if config.saving:
-            test_path = join('test', config.saving_path.split('/')[-1])
+            test_path = join(args.source_dir, 'test', config.saving_path.split('/')[-1])
             if not exists(test_path):
                 makedirs(test_path)
             report_path = join(test_path, 'reports')

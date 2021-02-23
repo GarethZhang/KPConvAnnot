@@ -21,7 +21,11 @@ class Config:
     #
     # save_dir = '/home/gzh/Documents/research/src/KPConvAnnot/test/Log_2021-01-15_V0.5'
 
-    pred_fname = 'pred_labels.txt'
+    pred_fname = 'pred_labels'
+
+    log_dirs = ['boreas-2021-01-31-local-00']
+
+    keywords = ['local']
 
     # font config
     SMALL_SIZE = 12
@@ -31,6 +35,8 @@ class Config:
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--job_dir', type=str, default='results/Log_2020-04-22_18-29-55', metavar='N',
+                        help='Job directory')
+    parser.add_argument('--slurm_dir', type=str, default='results/Log_2020-04-22_18-29-55', metavar='N',
                         help='Job directory')
 
     args = parser.parse_args()
@@ -42,18 +48,41 @@ if __name__ == '__main__':
 
     fnames = sorted(os.listdir(data_dir))
 
-    pred_labels_fname = os.path.join(save_dir, config.pred_fname)
+    for j, log_dir in enumerate(config.log_dirs):
 
-    with open(pred_labels_fname, "a") as pred_labels_file:
-        for fname in tqdm(fnames):
-            data = read_ply(os.path.join(data_dir, fname))
-            pred = np.array(data['pre']).astype(np.int32)
-            pred_str = [str(pred_i) for pred_i in pred]
-            pred_labels_file.writelines(' '.join(pred_str) + '\n')
-            # # pred_labels_file.write(b'\n')
-            # np.savetxt(pred_labels_fname, pred, fmt='%d')
-            # pred_labels_file.write(b'hi\n')
-    pred_labels_file.close()
+        log_fnames = [fname for fname in fnames if config.keywords[j] in fname]
+
+        test_dir = os.path.join(args.slurm_dir, 'test', 'sequences', log_dir, 'velodyne')
+
+        velo_fnames = sorted(os.listdir(test_dir))
+
+        velo_timestamps = [velo_fname.split('_')[2].split('.')[0] for velo_fname in velo_fnames]
+
+        print(len(log_fnames), len(velo_timestamps))
+
+        if len(log_fnames) != len(velo_timestamps):
+            print('Skip {:s} due to non-matching'.format(log_dir))
+            continue
+
+        pred_labels_fname = os.path.join(save_dir, '{:s}_{:s}.txt'.format(config.pred_fname, log_dir))
+
+        if os.path.exists(pred_labels_fname):
+            print('Label already exists: {:s}'.format(log_dir))
+            continue
+
+        with open(pred_labels_fname, "a") as pred_labels_file:
+            for i, fname in tqdm(enumerate(log_fnames)):
+                data = read_ply(os.path.join(data_dir, fname))
+                pred = np.array(data['pre']).astype(np.int32)
+                pred_str = [str(pred_i) for pred_i in pred]
+                pred_str = [velo_timestamps[i]] + pred_str
+                pred_labels_file.writelines(' '.join(pred_str) + '\n')
+                # # pred_labels_file.write(b'\n')
+                # np.savetxt(pred_labels_fname, pred, fmt='%d')
+                # pred_labels_file.write(b'hi\n')
+        pred_labels_file.close()
+
+        print('Done {:s}'.format(log_dir))
 
     print('============================')
     print('============DONE============')

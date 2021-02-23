@@ -70,9 +70,16 @@ def _init_saving(args):
     if not os.path.exists('{}/backup'.format(chkp_dir)):
         os.makedirs('{}/backup'.format(chkp_dir))
 
-    os.system('cp models/architectures.py {}/backup/architectures.py.backup'.format(chkp_dir))
-    os.system('cp train_Buick.py {}/backup/train_Buick.py.backup'.format(chkp_dir))
-    os.system('cp test_models.py {}/backup/test_models.py.backup'.format(chkp_dir))
+    if args.slurm_dir != '':
+        os.system('cp {:s}/models/architectures.py {}/backup/architectures.py.backup'.format(args.source_dir, chkp_dir))
+        os.system('cp {:s}/train_Boreas.py {}/backup/train_Boreas.py.backup'.format(args.source_dir, chkp_dir))
+        os.system('cp {:s}/datasets/Boreas.py {}/backup/Boreas.py.backup'.format(args.source_dir, chkp_dir))
+        os.system('cp {:s}/test_models.py {}/backup/test_models.py.backup'.format(args.source_dir, chkp_dir))
+    else:
+        os.system('cp models/architectures.py {}/backup/architectures.py.backup'.format(chkp_dir))
+        os.system('cp train_Boreas.py {}/backup/train_Boreas.py.backup'.format(chkp_dir))
+        os.system('cp datasets/Boreas.py {}/backup/Boreas.py.backup'.format(chkp_dir))
+        os.system('cp test_models.py {}/backup/test_models.py.backup'.format(chkp_dir))
 
 def model_choice(chosen_log):
 
@@ -128,6 +135,10 @@ if __name__ == '__main__':
                         help='Manual checkpoint selection')
     parser.add_argument('--random_potential', type=bool, default=False, metavar='N', required=False,
                         help='Turn off random potential to do sequential test')
+    parser.add_argument('--slurm_dir', type=str, default='', metavar='N',
+                        help='SLURM directory')
+    parser.add_argument('--source_dir', type=str, default='', metavar='N',
+                        help='Source directory')
 
     args = parser.parse_args()
 
@@ -142,7 +153,7 @@ if __name__ == '__main__':
     _init_saving(args)
 
     # Choose to test on validation or test split
-    on_val = True
+    on_val = False
 
     # Deal with 'last_XXXXXX' choices
     chosen_log = model_choice(chosen_log)
@@ -249,7 +260,9 @@ if __name__ == '__main__':
         test_sampler = BuickSampler(test_dataset)
         collate_fn = BuickCollate
     elif config.dataset == 'Boreas':
-        test_dataset = BoreasDataset(config, set=set, balance_classes=False, random_potentials=args.random_potential)
+        test_dataset = BoreasDataset(config, set=set, balance_classes=False,
+                                     random_potentials=args.random_potential,
+                                     slurm_dir=args.slurm_dir)
         test_sampler = BoreasSampler(test_dataset)
         collate_fn = BoreasCollate
     else:
@@ -292,6 +305,6 @@ if __name__ == '__main__':
     elif config.dataset_task == 'cloud_segmentation':
         tester.cloud_segmentation_test(net, test_loader, config)
     elif config.dataset_task == 'slam_segmentation':
-        tester.slam_segmentation_test(net, test_loader, config)
+        tester.slam_segmentation_test(net, test_loader, config, args)
     else:
         raise ValueError('Unsupported dataset_task for testing: ' + config.dataset_task)

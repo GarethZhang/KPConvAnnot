@@ -51,10 +51,16 @@ def _init_saving(args):
     if not os.path.exists('{}/backup'.format(chkp_dir)):
         os.makedirs('{}/backup'.format(chkp_dir))
 
-    os.system('cp models/architectures.py {}/backup/architectures.py.backup'.format(chkp_dir))
-    os.system('cp train_Boreas.py {}/backup/train_Boreas.py.backup'.format(chkp_dir))
-    os.system('cp datasets/Boreas.py {}/backup/Boreas.py.backup'.format(chkp_dir))
-    os.system('cp test_models.py {}/backup/test_models.py.backup'.format(chkp_dir))
+    if args.slurm_dir != '':
+        os.system('cp {:s}/models/architectures.py {}/backup/architectures.py.backup'.format(args.source_dir, chkp_dir))
+        os.system('cp {:s}/train_Boreas.py {}/backup/train_Boreas.py.backup'.format(args.source_dir, chkp_dir))
+        os.system('cp {:s}/datasets/Boreas.py {}/backup/Boreas.py.backup'.format(args.source_dir, chkp_dir))
+        os.system('cp {:s}/test_models.py {}/backup/test_models.py.backup'.format(args.source_dir, chkp_dir))
+    else:
+        os.system('cp models/architectures.py {}/backup/architectures.py.backup'.format(chkp_dir))
+        os.system('cp train_Boreas.py {}/backup/train_Boreas.py.backup'.format(chkp_dir))
+        os.system('cp datasets/Boreas.py {}/backup/Boreas.py.backup'.format(chkp_dir))
+        os.system('cp test_models.py {}/backup/test_models.py.backup'.format(chkp_dir))
 
 
 class BoreasConfig(Config):
@@ -117,8 +123,8 @@ class BoreasConfig(Config):
     max_val_points = 180000
 
     # Number of batch
-    batch_num = 8
-    val_batch_num = 8
+    batch_num = 2
+    val_batch_num = 2
 
     # Number of kernel points
     num_kernel_points = 15
@@ -233,6 +239,8 @@ if __name__ == '__main__':
                         help='Job directory')
     parser.add_argument('--slurm_dir', type=str, default='', metavar='N',
                         help='SLURM directory')
+    parser.add_argument('--source_dir', type=str, default='', metavar='N',
+                        help='Source directory')
 
     args = parser.parse_args()
 
@@ -292,9 +300,11 @@ if __name__ == '__main__':
 
     # Initialize datasets
     training_dataset = BoreasDataset(config, set='training',
-                                    balance_classes=True)
+                                     balance_classes=True,
+                                     slurm_dir=args.slurm_dir)
     test_dataset = BoreasDataset(config, set='validation',
-                                balance_classes=False)
+                                 balance_classes=False,
+                                 slurm_dir=args.slurm_dir)
 
     # Initialize samplers
     training_sampler = BoreasSampler(training_dataset)

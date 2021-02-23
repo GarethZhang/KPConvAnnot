@@ -57,7 +57,7 @@ from utils.config import bcolors
 class BoreasDataset(PointCloudDataset):
     """Class to handle Boreas dataset."""
 
-    def __init__(self, config, set='training', balance_classes=True, random_potentials=True):
+    def __init__(self, config, set='training', balance_classes=True, random_potentials=True, slurm_dir=''):
         PointCloudDataset.__init__(self, 'Boreas')
 
         ##########################
@@ -66,7 +66,11 @@ class BoreasDataset(PointCloudDataset):
 
         # Dataset folder
         # self.path = '/raid/gzh/Data/Boreas' # path on docker container
-        self.path = '/raid/gzh/Data/Boreas'
+        self.set = set
+        if slurm_dir == '':
+            self.path = '/raid/gzh/Data/Boreas/{:s}'.format(self.set)
+        else:
+            self.path = '{:s}/{:s}'.format(slurm_dir, self.set)
         self.lidar_dt = 0.1
         self.skip = 1
 
@@ -74,7 +78,6 @@ class BoreasDataset(PointCloudDataset):
         self.dataset_task = 'slam_segmentation'
 
         # Training or test set
-        self.set = set
         self.random_potentials = random_potentials
 
         self.seq_fname = sorted([i for i in os.listdir(join(self.path, 'sequences')) if os.path.isdir(join(self.path, 'sequences', i))])
@@ -82,63 +85,29 @@ class BoreasDataset(PointCloudDataset):
 
         # Get a list of sequences (0 - 31)
         if self.set == 'training':
-            self.sequences = [self.seq_fname[i] for i in range(self.num_seq) if i == 0 or i == 1]
+            self.sequences = [self.seq_fname[i] for i in range(self.num_seq)]
         elif self.set == 'validation':
-            self.sequences = [self.seq_fname[i] for i in range(self.num_seq) if i == 2]
+            self.sequences = [self.seq_fname[i] for i in range(self.num_seq)]
         elif self.set == 'test':
-            self.sequences = [self.seq_fname[i] for i in range(self.num_seq) if i == 2]
+            self.sequences = [self.seq_fname[i] for i in range(self.num_seq)]
         else:
-            raise ValueError('Unknown set for Oxford data: ', self.set)
-        print(self.sequences)
+            raise ValueError('Unknown set for Boreas data: ', self.set)
+        print(self.set, self.sequences)
 
         # List all files in each sequence
         self.lidar = 'velodyne'
-        self.annotation = 'annotated'
+        # self.annotation = 'annotated'
         self.frames = []
-        self.frame_ts = []
-        self.frames_indices = []
-        self.annotated_frames = []
-        self.annotation_ts = []
-        self.annotation_indices = []
+        # self.frame_ts = []
+        # self.frames_indices = []
+        # self.annotated_frames = []
+        # self.annotation_ts = []
+        # self.annotation_indices = []
         for i, seq in enumerate(self.sequences):
-            velo_annotated_path = join(self.path, 'sequences', seq, self.annotation)
-            annotated_frames = np.sort([vf for vf in listdir(velo_annotated_path) if vf.endswith('.ply')])
-
-            # save the timestamp into a list for search up
-            # timestamp is required for first 11 digits, which matches up to .x seconds
-            annotation_t = [annotated_frame.split('_')[2].split('.')[0][:14] for annotated_frame in annotated_frames]
-            self.annotation_ts.append(annotation_t)
-
             velo_path = join(self.path, 'sequences', seq, self.lidar)
             frames = np.sort([vf for vf in listdir(velo_path) if vf.endswith('.ply')])
 
-            frame_t = [frame.split('_')[2].split('.')[0][:14] for frame in frames]
-            self.frame_ts.append(frame_t)
-
-            # Cross-referencing velodyne and annotations to make sure a one-to-one match
-            self.frames.append([frame for j, frame in enumerate(frames) if frame_t[j] in annotation_t])
-            self.frames_indices.append([j for j, frame in enumerate(frames) if frame_t[j] in annotation_t])
-            self.annotated_frames.append([annotated_frame for j, annotated_frame in enumerate(annotated_frames) if annotation_t[j] in frame_t])
-            self.annotation_indices.append([j for j, annotated_frame in enumerate(annotated_frames) if annotation_t[j] in frame_t])
-
-            assert len(self.frames[i]) == len(self.annotated_frames[i]), 'Velodyne and annotation should have same number of frames!'
-
-            # verify timestamp matches
-            for j in range(len(self.frames_indices[i])):
-                if frame_t[self.frames_indices[i][j]] != annotation_t[self.annotation_indices[i][j]]:
-                    print("Frame timestamp: {:s}".format(frame_t[self.frames_indices[i][j]]))
-                    print("Annotation timestamp: {:s}".format(annotation_t[self.annotation_indices[i][j]]))
-                    assert False, "Timestamp does not match!"
-
-            # # verify that all the matching frames have the same size
-            # seq_path = join(self.path, 'sequences', self.sequences[i])
-            # for j, frame in enumerate(self.frames[i]):
-            #     frame_n_pts = np.load(join(seq_path, self.lidar, frame)).shape[0]
-            #     label_file = join(seq_path, self.annotation, self.annotated_frames[i][j])
-            #     annotated_frame_n_pts = read_ply(label_file)['classif'].shape[0]
-            #     if frame_n_pts != annotated_frame_n_pts:
-            #         print(frame, self.annotated_frames[i][j])
-            #         print("Frame and annotation must have same number of points!")
+            self.frames.append([frame for j, frame in enumerate(frames)])
 
             print('Seq {:s} has {}/{} valid velodyne frames'.format(seq, len(self.frames[i]), len(frames)))
 
@@ -213,9 +182,13 @@ class BoreasDataset(PointCloudDataset):
         # shared epoch indices and classes (in case we want class balanced sampler)
         if set == 'training':
             N = int(np.ceil(config.epoch_steps * self.batch_num * 1.1))
-        else:
+        elif set == 'test':
             N = config.validation_size
-            # N = int(np.ceil(config.validation_size * self.batch_num * 1.1))
+        elif set == 'validation':
+            if random_potentials:
+                N = int(np.ceil(config.validation_size * self.batch_num * 1.1))
+            else:
+                N = config.validation_size
         self.epoch_i = torch.from_numpy(np.zeros((1,), dtype=np.int64)) # current index
         self.epoch_inds = torch.from_numpy(np.zeros((N,), dtype=np.int64)) # indices of point cloud
         self.epoch_labels = torch.from_numpy(np.zeros((N,), dtype=np.int32))
@@ -314,7 +287,7 @@ class BoreasDataset(PointCloudDataset):
                 if self.set == 'test':
                     label_file = None
                 else:
-                    label_file = join(seq_path, self.annotation, self.annotated_frames[s_ind][f_ind - f_inc])
+                    label_file = velo_file
 
                 # Read points
                 frame_data = read_ply(velo_file)
@@ -325,9 +298,9 @@ class BoreasDataset(PointCloudDataset):
                     # Fake labels
                     sem_labels = np.zeros((points.shape[0],), dtype=np.int32)
                 else:
-                    # Read labels
-                    annotation_data = read_ply(label_file)
-                    sem_labels = annotation_data['classif'] # TODO not sure why label field is used in original code
+                    # # Read labels
+                    # annotation_data = read_ply(label_file)
+                    sem_labels = frame_data['classif'] # TODO not sure why label field is used in original code
 
                 # Apply pose (without np.dot to avoid multi-threading)
                 hpoints = np.hstack((points[:, :3], np.ones_like(points[:, :1])))
@@ -588,32 +561,60 @@ class BoreasDataset(PointCloudDataset):
         self.times = []
         self.poses = []
 
-        for i, seq in enumerate(self.sequences):
+        if self.set in ['training', 'validation']:
+            for i, seq in enumerate(self.sequences):
 
-            seq_folder = join(self.path, 'sequences', seq)
+                seq_folder = join(self.path, 'sequences', seq)
 
-            # Read poses
-            # poses_all = np.load(join(seq_folder, 'poses.npy')).astype(np.float32)
-            poses_all = np.loadtxt(join(seq_folder, 'map_poses.txt')).astype(np.float32)
-            num_poses_all = poses_all.shape[0]
-            T_map_velo_loc = np.expand_dims(np.identity(4, dtype=np.float32), axis=0).repeat(num_poses_all, axis=0)
-            T_map_velo_loc[:,:3,:3] = poses_all[:,1:].reshape((-1, 4, 3))[:,:3,:3]
-            T_map_velo_loc[:,:3, 3] = (poses_all[:,1:].reshape((-1, 4, 3))[:, 3,:3])
-            self.poses.append([T_map_velo_loc[j] for j in range(T_map_velo_loc.shape[0]) if j in self.annotation_indices[i]])
+                # Read poses
+                # poses_all = np.load(join(seq_folder, 'poses.npy')).astype(np.float32)
+                poses_all = np.loadtxt(join(seq_folder, 'map_poses.txt')).astype(np.float32)
+                num_poses_all = poses_all.shape[0]
+                T_map_velo_loc = np.expand_dims(np.identity(4, dtype=np.float32), axis=0).repeat(num_poses_all, axis=0)
+                T_map_velo_loc[:,:3,:3] = poses_all[:,1:].reshape((-1, 4, 3))[:,:3,:3]
+                T_map_velo_loc[:,:3, 3] = (poses_all[:,1:].reshape((-1, 4, 3))[:, 3,:3])
+                self.poses.append([T_map_velo_loc[j] for j in range(T_map_velo_loc.shape[0])])
 
-        # pick out start and end frames based on config
-        frames_updated = [[frame for j, frame in enumerate(self.frames[i])
-                           if j >= self.config.sequence_si[i] and j <= self.config.sequence_ei[i]]
-                          for i, seq in enumerate(self.sequences)]
-        annotated_frames_updated = [[annotated_frame for j, annotated_frame in enumerate(self.annotated_frames[i])
-                           if j >= self.config.sequence_si[i] and j <= self.config.sequence_ei[i]]
-                          for i, seq in enumerate(self.sequences)]
-        poses_updated = [[pose for j, pose in enumerate(self.poses[i])
-                           if j >= self.config.sequence_si[i] and j <= self.config.sequence_ei[i]]
-                          for i, seq in enumerate(self.sequences)]
-        self.frames = frames_updated
-        self.annotated_frames = annotated_frames_updated
-        self.poses = poses_updated
+            # # pick out start and end frames based on config
+            # frames_updated = [[frame for j, frame in enumerate(self.frames[i])]
+            #                   for i, seq in enumerate(self.sequences)]
+            # # annotated_frames_updated = [[annotated_frame for j, annotated_frame in enumerate(self.annotated_frames[i])]
+            # #                   for i, seq in enumerate(self.sequences)]
+            # poses_updated = [[pose for j, pose in enumerate(self.poses[i])]
+            #                   for i, seq in enumerate(self.sequences)]
+            # self.frames = frames_updated
+            # # self.annotated_frames = annotated_frames_updated
+            # self.poses = poses_updated
+        elif self.set == 'test':
+            for i, seq in enumerate(self.sequences):
+
+                seq_folder = join(self.path, 'sequences', seq)
+
+                # Read poses
+                # poses_all = np.load(join(seq_folder, 'poses.npy')).astype(np.float32)
+                pose_fname = join(seq_folder, 'map_poses.txt')
+                if os.path.exists(pose_fname):
+                    poses_all = np.loadtxt(pose_fname).astype(np.float32)
+                    num_poses_all = poses_all.shape[0]
+                    T_map_velo_loc = np.expand_dims(np.identity(4, dtype=np.float32), axis=0).repeat(num_poses_all, axis=0)
+                    T_map_velo_loc[:,:3,:3] = poses_all[:,1:].reshape((-1, 4, 3))[:,:3,:3]
+                    T_map_velo_loc[:,:3, 3] = (poses_all[:,1:].reshape((-1, 4, 3))[:, 3,:3])
+                    self.poses.append([T_map_velo_loc[j] for j in range(T_map_velo_loc.shape[0])])
+                else:
+                    T_map_velo_loc = np.zeros((len(self.frames[i]), 4, 4))
+                    T_map_velo_loc[:,0,0] = 1.0
+                    T_map_velo_loc[:,1,1] = 1.0
+                    T_map_velo_loc[:,2,2] = 1.0
+                    T_map_velo_loc[:,3,3] = 1.0
+                    T_map_velo_loc = T_map_velo_loc.astype(np.float32)
+                    self.poses.append([T_map_velo_loc[j] for j in range(T_map_velo_loc.shape[0])])
+
+            #     # pick out start and end frames based on config
+            # frames_updated = [[frame for j, frame in enumerate(self.frames[i])]
+            #                   for i, seq in enumerate(self.sequences)]
+            # self.frames = frames_updated
+        else:
+            assert False, "Set not available"
 
         ###################################
         # Prepare the indices of all frames
@@ -632,7 +633,7 @@ class BoreasDataset(PointCloudDataset):
             self.class_proportions = np.zeros((self.num_classes,), dtype=np.int64)
 
             for s_ind, (seq, seq_frames) in enumerate(zip(self.sequences, self.frames)):
-                seq_annotations = self.annotated_frames[s_ind]
+                # seq_annotations = self.annotated_frames[s_ind]
 
                 frame_mode = 'single'
                 if self.config.n_frames > 1:
@@ -664,14 +665,10 @@ class BoreasDataset(PointCloudDataset):
 
                         frame_name = join(seq_path, self.lidar, frame_name)
                         frame_data = read_ply(frame_name)
-                        frame_x = frame_data['x']
+                        sem_labels = frame_data['classif'] # TODO not sure why label field is used here
 
-                        annotation_fname = join(seq_path, self.annotation, seq_annotations[f_ind])
-                        annotation_data = read_ply(annotation_fname)
-                        sem_labels = annotation_data['classif'] # TODO not sure why label field is used here
-
-                        if frame_x.shape[0] != sem_labels.shape[0]:
-                            print(frame_x.shape[0], sem_labels.shape[0], s_ind, frame_name, seq_annotations[f_ind])
+                        # if frame_x.shape[0] != sem_labels.shape[0]:
+                        #     print(frame_x.shape[0], sem_labels.shape[0], s_ind, frame_name, seq_annotations[f_ind])
 
                         # Get present labels and their frequency
                         unique, counts = np.unique(sem_labels, return_counts=True)

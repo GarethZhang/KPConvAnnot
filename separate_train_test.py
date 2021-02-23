@@ -1,4 +1,4 @@
-''' This Python script separates a Boreas run data into both training and testing sequences using softlinks
+''' This Python script separates a Boreas run data into both training, validation and testing sequences using symlinks
 
 Assumptions are made regarding the directory structure and file formats. Please see following:
 
@@ -6,11 +6,12 @@ DATA_DIR (e.g. /raid/gzh/Data/Boreas)/
 |-- raw/
 |   |-- sequences/
 |       |-- DAY_DIR (e.g. boreas-2020-12-01-13-26)/
-|           |-- annotated (in .ply format)
 |           |-- velodyne (in .ply format)
-|           |-- redundant_scans (in .ply format)
 |           |-- map_poses.txt
-|-- train/
+|-- training/
+|   |-- sequences/
+|       |-- ...
+|-- validation/
 |   |-- sequences/
 |       |-- ...
 |-- test/
@@ -18,8 +19,11 @@ DATA_DIR (e.g. /raid/gzh/Data/Boreas)/
 |       |-- ...
 |...
 
-For both training and testing sequences, it would rely on pre-defined poses provided to determine whether a frame belongs
-to either training, testing, or None. This pre-defined poses is manually selected from first localization run.
+For training and validation sequences, it would rely on pre-defined poses provided to determine whether a frame belongs
+to either training, or validation, or None. This pre-defined poses is manually selected from first localization run.
+
+For test sequence, it would rely on a test_day variable pre-defined. Test sequence is nowhere from either training or
+validation.
 
 '''
 
@@ -57,14 +61,19 @@ class Config:
     # training data
     train_dir = 'training'
 
-    # testing data
-    test_dir = 'validation'
+    # validation data
+    val_dir = 'validation'
+
+    # test data
+    test_dir = 'test'
+
+    # test_days = ['boreas-2021-01-31-dufferin-00', 'boreas-2021-01-31-highway-00-00', 'boreas-2021-01-31-local-00']
+
+    test_days = ['boreas-2021-01-31-local-00']
 
     seq_dir = 'sequences'
 
     scan_dir = 'velodyne'
-
-    annot_dir = 'annotated'
 
     pose_fname = 'map_poses.txt'
 
@@ -72,9 +81,9 @@ class Config:
 
     train_seq_ei = [1920, 6800, 8600]
 
-    test_seq_si = [1930, 6810]
+    val_seq_si = [1930, 6810]
 
-    test_seq_ei = [2450, 7615]
+    val_seq_ei = [2450, 7615]
 
 
     # font config
@@ -84,7 +93,13 @@ class Config:
 
 if __name__ == '__main__':
 
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--data_dir', type=str, default='/raid/gzh/Data/Boreas', metavar='N',
+                        help='Data directory')
+    args = parser.parse_args()
+
     config = Config()
+    config.data_dir = args.data_dir
 
     raw_dir = join(config.data_dir, config.raw_dir)
 
@@ -92,9 +107,13 @@ if __name__ == '__main__':
 
     train_dir = join(config.data_dir, config.train_dir)
 
+    val_dir = join(config.data_dir, config.val_dir)
+
     test_dir = join(config.data_dir, config.test_dir)
 
     train_seq_dir = join(train_dir, config.seq_dir)
+
+    val_seq_dir = join(val_dir, config.seq_dir)
 
     test_seq_dir = join(test_dir, config.seq_dir)
 
@@ -102,93 +121,93 @@ if __name__ == '__main__':
 
     T_map_velo_train = None
 
-    T_map_velo_test = None
+    T_map_velo_val = None
 
     for i, day in enumerate(sorted(os.listdir(seq_dir))):
-        # read directories from raw
-        day_dir = join(seq_dir, day)
-        day_scan_dir = join(day_dir, config.scan_dir)
-        day_annot_dir = join(day_dir, config.annot_dir)
-        day_scan_fnames = sorted(os.listdir(day_scan_dir))
-        day_annot_fnames = sorted(os.listdir(day_annot_dir))
-        day_pose_fname = join(day_dir, config.pose_fname)
-        assert len(day_scan_fnames) == len(day_annot_fnames), "Scan and annotations must have the same number of frames!"
+        if day not in config.test_days:
+            print('======================================')
+            print('=============DAY-{:s}============='.format(day))
+            print('======================================')
+            # read directories from raw
+            day_dir = join(seq_dir, day)
+            day_scan_dir = join(day_dir, config.scan_dir)
+            day_scan_fnames = sorted(os.listdir(day_scan_dir))
+            day_pose_fname = join(day_dir, config.pose_fname)
 
-        # create new directories for training if not exists
-        train_day_dir = join(train_seq_dir, day)
-        train_day_scan_dir = join(train_day_dir, config.scan_dir)
-        if not os.path.exists(train_day_scan_dir):
-            print("Create train day scan directory: {:s}".format(day))
-            os.makedirs(train_day_scan_dir)
-        train_day_annot_dir = join(train_day_dir, config.annot_dir)
-        if not os.path.exists(train_day_annot_dir):
-            print("Create train day annot directory: {:s}".format(day))
-            os.makedirs(train_day_annot_dir)
+            # create new directories for training if not exists
+            train_day_dir = join(train_seq_dir, day)
+            train_day_scan_dir = join(train_day_dir, config.scan_dir)
+            if not os.path.exists(train_day_scan_dir):
+                print("Create train day scan directory: {:s}".format(day))
+                os.makedirs(train_day_scan_dir)
 
-        test_day_dir = join(test_seq_dir, day)
-        test_day_scan_dir = join(test_day_dir, config.scan_dir)
-        if not os.path.exists(test_day_scan_dir):
-            print("Create test day scan directory: {:s}".format(day))
-            os.makedirs(test_day_scan_dir)
-        test_day_annot_dir = join(test_day_dir, config.annot_dir)
-        if not os.path.exists(test_day_annot_dir):
-            print("Create test day annot directory: {:s}".format(day))
-            os.makedirs(test_day_annot_dir)
+            val_day_dir = join(val_seq_dir, day)
+            val_day_scan_dir = join(val_day_dir, config.scan_dir)
+            if not os.path.exists(val_day_scan_dir):
+                print("Create validation day scan directory: {:s}".format(day))
+                os.makedirs(val_day_scan_dir)
 
-        # For first localization run, use sequence indices to determine train and test
-        poses_all = np.loadtxt(day_pose_fname).astype(np.float32)
-        num_poses_all = poses_all.shape[0]
-        T_map_velo_loc = np.expand_dims(np.identity(4, dtype=np.float32), axis=0).repeat(num_poses_all, axis=0)
-        T_map_velo_loc[:,:3,:3] = poses_all[:,1:].reshape((-1, 4, 3))[:,:3,:3]
-        T_map_velo_loc[:,:3, 3] = (poses_all[:,1:].reshape((-1, 4, 3))[:, 3,:3])
+            # For first localization run, use sequence indices to determine train and validation
+            poses_all = np.loadtxt(day_pose_fname).astype(np.float32)
+            num_poses_all = poses_all.shape[0]
+            T_map_velo_loc = np.expand_dims(np.identity(4, dtype=np.float32), axis=0).repeat(num_poses_all, axis=0)
+            T_map_velo_loc[:,:3,:3] = poses_all[:,1:].reshape((-1, 4, 3))[:,:3,:3]
+            T_map_velo_loc[:,:3, 3] = (poses_all[:,1:].reshape((-1, 4, 3))[:, 3,:3])
 
-        if i == 0:
-            # save training and testing poses
-            train_inds = [list(range(config.train_seq_si[ind], config.train_seq_ei[ind])) for ind in range(len(config.train_seq_si))]
-            train_inds = np.array([item for sublist in train_inds for item in sublist]).astype(np.int32)
+            if i == 0:
+                # save training and testing poses
+                train_inds = [list(range(config.train_seq_si[ind], config.train_seq_ei[ind])) for ind in range(len(config.train_seq_si))]
+                train_inds = np.array([item for sublist in train_inds for item in sublist]).astype(np.int32)
 
-            test_inds = [list(range(config.test_seq_si[ind], config.test_seq_ei[ind])) for ind in range(len(config.test_seq_si))]
-            test_inds = np.array([item for sublist in test_inds for item in sublist]).astype(np.int32)
+                val_inds = [list(range(config.val_seq_si[ind], config.val_seq_ei[ind])) for ind in range(len(config.val_seq_si))]
+                val_inds = np.array([item for sublist in val_inds for item in sublist]).astype(np.int32)
 
-            T_map_velo_train = T_map_velo_loc[train_inds]
-            T_map_velo_test = T_map_velo_loc[test_inds]
+                T_map_velo_train = T_map_velo_loc[train_inds]
+                T_map_velo_val = T_map_velo_loc[val_inds]
+            else:
+                train_inds = get_nearby_poses(T_map_velo_train, T_map_velo_loc)
+                train_inds = np.where(train_inds > 0.5)[0]
+                val_inds = get_nearby_poses(T_map_velo_val, T_map_velo_loc)
+                val_inds = np.where(val_inds > 0.5)[0]
+            print("day: {:s} ==> train: {:d} test: {:d}".format(day, train_inds.shape[0], val_inds.shape[0]))
+
+            poses_all = np.loadtxt(day_pose_fname).astype(np.float32)
+            train_day_pose_fname = join(train_day_dir, config.pose_fname)
+            np.savetxt(train_day_pose_fname, poses_all[train_inds])
+
+            val_day_pose_fname = join(val_day_dir, config.pose_fname)
+            np.savetxt(val_day_pose_fname, poses_all[val_inds])
+
+            # save training and validation scans
+            train_day_scan_fnames = [day_scan_fnames[ind] for ind in range(len(day_scan_fnames)) if ind in train_inds]
+            val_day_scan_fnames = [day_scan_fnames[ind] for ind in range(len(day_scan_fnames)) if ind in val_inds]
+            for train_day_scan_fname in train_day_scan_fnames:
+                if not os.path.exists(join(train_day_scan_dir, train_day_scan_fname)):
+                    os.symlink(join(day_scan_dir, train_day_scan_fname),
+                               join(train_day_scan_dir, train_day_scan_fname))
+            for val_day_scan_fname in val_day_scan_fnames:
+                if not os.path.exists(join(val_day_scan_dir, val_day_scan_fname)):
+                    os.symlink(join(day_scan_dir, val_day_scan_fname),
+                               join(val_day_scan_dir, val_day_scan_fname))
         else:
-            train_inds = get_nearby_poses(T_map_velo_train, T_map_velo_loc)
-            train_inds = np.where(train_inds > 0.5)[0]
-            test_inds = get_nearby_poses(T_map_velo_test, T_map_velo_loc)
-            test_inds = np.where(test_inds > 0.5)[0]
-        print("day: {:s} ==> train: {:d} test: {:d}".format(day, train_inds.shape[0], test_inds.shape[0]))
+            print('======================================')
+            print('==========TEST DAY-{:s}=========='.format(day))
+            print('======================================')
+            # read directories from raw
+            day_dir = join(seq_dir, day)
 
-        poses_all = np.loadtxt(day_pose_fname).astype(np.float32)
-        train_day_pose_fname = join(train_day_dir, config.pose_fname)
-        np.savetxt(train_day_pose_fname, poses_all[train_inds])
+            test_day_dir = join(test_seq_dir, day)
 
-        test_day_pose_fname = join(test_day_dir, config.pose_fname)
-        np.savetxt(test_day_pose_fname, poses_all[test_inds])
+            if not os.path.exists(test_seq_dir):
+                print("Create test seq directory")
+                os.makedirs(test_seq_dir)
 
-        # save training and testing scans
-        train_day_scan_fnames = [day_scan_fnames[ind] for ind in range(len(day_scan_fnames)) if ind in train_inds]
-        test_day_scan_fnames = [day_scan_fnames[ind] for ind in range(len(day_scan_fnames)) if ind in test_inds]
-        for train_day_scan_fname in train_day_scan_fnames:
-            os.symlink(join(day_scan_dir, train_day_scan_fname),
-                       join(train_day_scan_dir, train_day_scan_fname))
-        for test_day_scan_fname in test_day_scan_fnames:
-            os.symlink(join(day_scan_dir, test_day_scan_fname),
-                       join(test_day_scan_dir, test_day_scan_fname))
+            if not os.path.exists(test_day_dir):
+                print("Create test day scan directory: {:s}".format(day))
+                os.symlink(day_dir, test_day_dir)
+            else:
+                print("Test day scan directory already exists")
 
-        # save training and testing annot
-        train_day_annot_fnames = [day_annot_fnames[ind] for ind in range(len(day_annot_fnames)) if ind in train_inds]
-        test_day_annot_fnames = [day_annot_fnames[ind] for ind in range(len(day_annot_fnames)) if ind in test_inds]
-        for train_day_annot_fname in train_day_annot_fnames:
-            train_src = join(day_annot_dir, train_day_annot_fname)
-            train_dst = join(train_day_annot_dir, train_day_annot_fname)
-            if not os.path.exists(train_dst):
-                os.symlink(train_src, train_dst)
-        for test_day_annot_fname in test_day_annot_fnames:
-            test_src = join(day_annot_dir, test_day_annot_fname)
-            test_dst = join(test_day_annot_dir, test_day_annot_fname)
-            if not os.path.exists(test_dst):
-                os.symlink(test_src, test_dst)
 
     print('============================')
     print('============DONE============')

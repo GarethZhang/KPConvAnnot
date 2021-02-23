@@ -1,0 +1,22 @@
+-f /cvmfs/soft.computecanada.ca/custom/python/wheelhouse/gentoo/avx2
+-f /cvmfs/soft.computecanada.ca/custom/python/wheelhouse/gentoo/generic
+-f /cvmfs/soft.computecanada.ca/custom/python/wheelhouse/generic
+cycler==0.10.0
+joblib==1.0.0
+kiwisolver==1.3.1
+llvmlite==0.32.1
+matplotlib==3.3.3
+numba==0.49.1
+numpy==1.20.0
+Pillow==8.0.1
+pyparsing==2.4.7
+python-dateutil==2.8.1
+PyYAML==5.3.1
+scikit-learn==0.23.2
+scipy==1.6.0
+six==1.15.0
+sklearn==0.0
+threadpoolctl==2.1.0
+torch==1.7.1
+tqdm==4.56.0
+typing-extensions==3.7.4.3
