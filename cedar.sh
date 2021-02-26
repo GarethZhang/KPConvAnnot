@@ -2,9 +2,7 @@
 #SBATCH --gres=gpu:v100l:1       # Request specific V100
 #SBATCH --cpus-per-task=6  # Cores proportional to GPUs: 6 on Cedar, 10 on Béluga, 16 on Graham.
 #SBATCH --mem=150G       # Memory proportional to GPUs: 32000 Cedar, 47000 Béluga, 64000 Graham.
-#SBATCH --nodes=1
-#SBATCH --exclusive
-#SBATCH --time=5-00:00     # DD-HH:MM:SS
+#SBATCH --time=4-00:00     # DD-HH:MM:SS
 #SBATCH --mail-user=gareth.zhang@mail.utoronto.ca
 #SBATCH --mail-type=BEGIN
 #SBATCH --mail-type=END
@@ -12,7 +10,7 @@
 
 module load python/3.7.7 cuda cudnn
 
-SOURCEDIR=~/projects/def-tbarfoot/hzhang34/KPConvAnnot/
+SOURCEDIR=~/projects/def-tbarfoot/hzhang34/KPConvAnnot
 
 # Prepare virtualenv
 virtualenv --no-download $SLURM_TMPDIR/env
@@ -22,6 +20,10 @@ pip install --no-index -r $SOURCEDIR/requirements.txt
 # Prepare data
 SEQ_DIR=$SLURM_TMPDIR/boreas/raw/sequences
 mkdir -p $SEQ_DIR
+
+####################
+# Training sequences
+####################
 
 DAY=boreas-2020-12-01-13-26
 tar xvf ~/scratch/boreas/$DAY/$DAY.tar -C $SEQ_DIR
@@ -47,6 +49,9 @@ mkdir $SEQ_DIR/$DAY/velodyne
 mv $SEQ_DIR/$DAY/*.ply $SEQ_DIR/$DAY/velodyne
 cp ~/scratch/boreas/$DAY/map_poses.txt $SEQ_DIR/$DAY
 
+## Rename if necessary
+#python $SOURCEDIR/rename_scans.py --slurm_dir $SLURM_TMPDIR/boreas
+
 # Separate train, validation and test
 python $SOURCEDIR/separate_train_test.py --data_dir $SLURM_TMPDIR/boreas
 
@@ -60,6 +65,12 @@ python $SOURCEDIR/separate_train_test.py --data_dir $SLURM_TMPDIR/boreas
 #JOB_DIR=$SOURCEDIR/results/Log_2021-02-17_V0
 #python $SOURCEDIR/train_Boreas.py --job_dir $JOB_DIR --slurm_dir $SLURM_TMPDIR/boreas
 
-# re-start training that failed due to out of memory error
-JOB_DIR=$SOURCEDIR/results/Log_2021-02-17_V2
-python $SOURCEDIR/train_Boreas.py --job_dir $JOB_DIR --slurm_dir $SLURM_TMPDIR/boreas
+## re-start training that failed due to out of memory error
+#JOB_DIR=$SOURCEDIR/results/Log_2021-02-17_V2
+#python $SOURCEDIR/train_Boreas.py --job_dir $JOB_DIR --slurm_dir $SLURM_TMPDIR/boreas
+
+######### 2-23-2021 ########
+# Start training
+JOB_DIR=$SOURCEDIR/results/Log_2021-02-23_V2
+FEATURE_DIM=2
+python $SOURCEDIR/train_Boreas.py --job_dir $JOB_DIR --slurm_dir $SLURM_TMPDIR/boreas --source_dir $SOURCEDIR --feature_dims $FEATURE_DIM

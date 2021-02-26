@@ -388,6 +388,94 @@
 #RAND_POTENTIAL=True
 #python test_models.py --job_dir $JOB_DIR --log_dir $LOG_DIR --random_potential $RAND_POTENTIAL
 
-# Plot confusion matrices for reports
-JOB_DIR=test/Log_2021-02-08_V3.1
-python plot_confusion_matrix.py --job_dir $JOB_DIR
+## Plot confusion matrices for reports
+#JOB_DIR=test/Log_2021-02-08_V3.1
+#python plot_confusion_matrix.py --job_dir $JOB_DIR
+
+#python separate_train_test.py
+
+######### 2-16-2021 ########
+## On GPU 3
+## Experiment with new directory architecture setup
+#JOB_DIR=results/Log_2021-02-16_V0
+#python train_Boreas.py --job_dir $JOB_DIR
+
+## Locally visualize the network performance
+#JOB_DIR=results/Log_2021-02-16_V0
+#KEYWORDS=EPOCH11
+#python visualize_performance.py --job_dir $JOB_DIR --keywords $KEYWORDS
+
+## Locally visualize the network performance
+#JOB_DIR=results/Log_2021-02-16_V1
+#KEYWORDS=EPOCH11
+#python visualize_performance.py --job_dir $JOB_DIR --keywords $KEYWORDS
+
+## On GPU 3
+## Test on Boreas dataset at epoch 150-ish
+#JOB_DIR=results/Log_2021-02-16_V0
+#LOG_DIR=results/Log_2021-02-16_V0.0
+#RAND_POTENTIAL=True
+#python test_models.py --job_dir $JOB_DIR --log_dir $LOG_DIR
+
+## Plot confusion matrices for reports
+#JOB_DIR=test/Log_2021-02-16_V0.0
+#python plot_confusion_matrix.py --job_dir $JOB_DIR
+
+## Locally visualize the network performance
+#JOB_DIR=results/Log_2021-02-17_V0
+#KEYWORDS=EPOCH11
+#python visualize_performance.py --job_dir $JOB_DIR --keywords $KEYWORDS
+
+## On GPU 3
+## Test on Boreas dataset at epoch 150-ish
+#JOB_DIR=results/Log_2021-02-16_V0
+#LOG_DIR=results/Log_2021-02-16_V0.1
+#RAND_POTENTIAL=True
+#python test_models.py --job_dir $JOB_DIR --log_dir $LOG_DIR
+
+## Plot confusion matrices for reports
+#JOB_DIR=test/Log_2021-02-16_V0.1
+#FNAME=boreas-2020-12-01-13-26_0000333.ply
+#python plot_confusion_matrix_per_frame.py --job_dir $JOB_DIR --fname $FNAME
+
+## Plot confusion matrices for reports
+#JOB_DIR=test/Log_2021-02-16_V0.1
+#python plot_confusion_matrix.py --job_dir $JOB_DIR
+
+## On GPU 3
+## Test on Boreas dataset at epoch 150-ish
+#JOB_DIR=results/Log_2021-02-16_V0
+#LOG_DIR=results/Log_2021-02-16_V0.1
+#RAND_POTENTIAL=True
+#python test_models.py --job_dir $JOB_DIR --log_dir $LOG_DIR
+
+## Locally visualize the network performance
+#JOB_DIR=results/Log_2021-02-17_V1
+#KEYWORDS=EPOCH11
+#python visualize_performance.py --job_dir $JOB_DIR --keywords $KEYWORDS
+
+## Locally visualize the network performance
+#JOB_DIR=results/Log_2021-02-17_V2
+#KEYWORDS=EPOCH11
+#python visualize_performance.py --job_dir $JOB_DIR --keywords $KEYWORDS
+
+## On GPU 0
+## Test on Boreas dataset at epoch 150-ish
+#JOB_DIR=results/Log_2021-02-17_V1
+#LOG_DIR=results/Log_2021-02-17_V1.0
+#python test_models.py --job_dir $JOB_DIR --log_dir $LOG_DIR
+
+## Locally visualize the network performance
+#JOB_DIR=results/Log_2021-02-23_V0
+#KEYWORDS=EPOCH11
+#python visualize_performance.py --job_dir $JOB_DIR --keywords $KEYWORDS
+
+# Locally visualize the network performance
+JOB_DIR=results/Log_2021-02-23_V1
+KEYWORDS=EPOCH11
+python visualize_performance.py --job_dir $JOB_DIR --keywords $KEYWORDS
+
+## Locally visualize the network performance
+#JOB_DIR=results/Log_2021-02-23_V2
+#KEYWORDS=EPOCH11
+#python visualize_performance.py --job_dir $JOB_DIR --keywords $KEYWORDS
