@@ -57,7 +57,7 @@ from utils.config import bcolors
 class BoreasDataset(PointCloudDataset):
     """Class to handle Boreas dataset."""
 
-    def __init__(self, config, set='training', balance_classes=True, random_potentials=True, slurm_dir=''):
+    def __init__(self, config, set='training', balance_classes=True, random_potentials=True, slurm_dir='', random_subsample=False):
         PointCloudDataset.__init__(self, 'Boreas')
 
         ##########################
@@ -73,6 +73,7 @@ class BoreasDataset(PointCloudDataset):
             self.path = '{:s}/{:s}'.format(slurm_dir, self.set)
         self.lidar_dt = 0.1
         self.skip = 1
+        self.random_subsample = random_subsample
 
         # Type of task conducted on this dataset
         self.dataset_task = 'slam_segmentation'
@@ -242,6 +243,11 @@ class BoreasDataset(PointCloudDataset):
                 # Update epoch indice
                 self.epoch_i += 1
 
+            if self.random_subsample and np.random.rand(1) >= 0.5:
+                random_subsample = True
+            else:
+                random_subsample = False
+
             s_ind, f_ind = self.all_inds[ind]
 
             t += [time.time()]
@@ -272,6 +278,7 @@ class BoreasDataset(PointCloudDataset):
 
                 # Current frame pose
                 pose = self.poses[s_ind][f_ind - f_inc]
+                if random_subsample: pose = pose[::2]
 
                 # Select frame only if center has moved far away (more than X meter). Negative value to ignore
                 X = -1.0
@@ -291,8 +298,9 @@ class BoreasDataset(PointCloudDataset):
 
                 # Read points
                 frame_data = read_ply(velo_file)
-                points = np.vstack((frame_data['x'], frame_data['y'], frame_data['z'], frame_data['f0'])).T
+                points = np.vstack((frame_data['x'], frame_data['y'], frame_data['z'], frame_data['intensity'])).T
                 points[:,3] = points[:,3] / 255.0
+                if random_subsample: points = points[::2]
 
                 if self.set == 'test':
                     # Fake labels
@@ -301,6 +309,8 @@ class BoreasDataset(PointCloudDataset):
                     # # Read labels
                     # annotation_data = read_ply(label_file)
                     sem_labels = frame_data['classif'] # TODO not sure why label field is used in original code
+                    if random_subsample: sem_labels = sem_labels[::2]
+
 
                 # Apply pose (without np.dot to avoid multi-threading)
                 hpoints = np.hstack((points[:, :3], np.ones_like(points[:, :1])))

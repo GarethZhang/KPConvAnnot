@@ -149,7 +149,7 @@ class BoreasConfig(Config):
 
     # Choice of input features
     first_features_dim = 64
-    in_features_dim = 5
+    in_features_dim = 2
 
     # Can the network learn modulations
     modulated = False
@@ -235,6 +235,10 @@ if __name__ == '__main__':
     ############################
 
     parser = argparse.ArgumentParser()
+    parser.add_argument('--feature_dims', type=int, default=0, metavar='N',
+                        help='Number of feature dimensions')
+    parser.add_argument('--random_subsample', type=bool, default=False, metavar='N',
+                        help='50% chance to subsample by 2')
     parser.add_argument('--job_dir', type=str, default='results/Log_2020-04-22_18-29-55', metavar='N',
                         help='Job directory')
     parser.add_argument('--slurm_dir', type=str, default='', metavar='N',
@@ -294,6 +298,9 @@ if __name__ == '__main__':
     # if len(sys.argv) > 1:
     #     config.saving_path = sys.argv[1]
     config.saving_path = args.job_dir
+    if args.feature_dims > 0:
+        config.in_features_dim = args.feature_dims
+        print('Using {:d} # of features'.format(config.in_features_dim))
 
     # save copies of important files
     _init_saving(args)
@@ -301,7 +308,8 @@ if __name__ == '__main__':
     # Initialize datasets
     training_dataset = BoreasDataset(config, set='training',
                                      balance_classes=True,
-                                     slurm_dir=args.slurm_dir)
+                                     slurm_dir=args.slurm_dir,
+                                     random_subsample=args.random_subsample)
     test_dataset = BoreasDataset(config, set='validation',
                                  balance_classes=False,
                                  slurm_dir=args.slurm_dir)
