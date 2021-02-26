@@ -68,8 +68,10 @@ if __name__ == '__main__':
     column_labels = ['Uncertain', 'Ground', 'Still', 'LongT', 'ShortT']
     row_labels = ['Uncertain', 'Ground', 'Still', 'LongT', 'ShortT']
 
+    merged_confusion_matrix = None
     for i, report_fname in enumerate(report_fnames):
         confusion_matrix = np.loadtxt(report_fname, skiprows=config.row_si, max_rows=config.num_rows)
+        merged_confusion_matrix = merged_confusion_matrix + confusion_matrix if merged_confusion_matrix is not None else confusion_matrix
         confusion_matrix_in_percent = confusion_matrix / (np.sum(confusion_matrix, axis=1, keepdims=True) + 1e-6)
         confusion_matrices.append(confusion_matrix_in_percent)
 
@@ -93,3 +95,28 @@ if __name__ == '__main__':
             for j in range(confusion_matrix_in_percent.shape[1]):
                 ax.text(i + 0.2, j + 0.5, "{0:.2%}".format(confusion_matrix_in_percent[j][i]), style='italic')
         fig.savefig('{:s}/confusion_matrix_{:s}.png'.format(log_dir, report_fname.split('/')[-1][:-4]))
+
+
+    # Plot merged confusion matrix
+    merged_confusion_matrix_in_percent = merged_confusion_matrix / (np.sum(merged_confusion_matrix, axis=1, keepdims=True) + 1e-6)
+
+    fig = plt.figure(figsize=(12, 12))
+    ax = fig.add_subplot()
+    heatmap = ax.pcolor(merged_confusion_matrix_in_percent, cmap=plt.cm.Blues)
+
+    # put the major ticks at the middle of each cell
+    ax.set_xticks(np.arange(merged_confusion_matrix_in_percent.shape[1]) + 0.5, minor=False)
+    ax.set_yticks(np.arange(merged_confusion_matrix_in_percent.shape[0]) + 0.5, minor=False)
+
+    # want a more natural, table-like display
+    ax.invert_yaxis()
+    ax.xaxis.tick_top()
+
+    ax.set_xticklabels(column_labels, minor=False)
+    ax.set_yticklabels(row_labels, minor=False)
+
+    # loop through data for adding text
+    for i in range(merged_confusion_matrix_in_percent.shape[0]):
+        for j in range(merged_confusion_matrix_in_percent.shape[1]):
+            ax.text(i + 0.2, j + 0.5, "{0:.2%}".format(merged_confusion_matrix_in_percent[j][i]), style='italic')
+    fig.savefig('{:s}/merged_confusion_matrix.png'.format(log_dir))
