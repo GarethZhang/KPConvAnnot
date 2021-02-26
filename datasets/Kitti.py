@@ -54,23 +54,23 @@ from utils.config import bcolors
 #       \******************************/
 
 
-class BoreasDataset(PointCloudDataset):
-    """Class to handle Boreas dataset."""
+class KittiDataset(PointCloudDataset):
+    """Class to handle Kitti dataset."""
 
     def __init__(self, config, set='training', balance_classes=True, random_potentials=True, slurm_dir=''):
-        PointCloudDataset.__init__(self, 'Boreas')
+        PointCloudDataset.__init__(self, 'Kitti')
 
         ##########################
         # Parameters for the files
         ##########################
 
         # Dataset folder
-        # self.path = '/raid/gzh/Data/Boreas' # path on docker container
+        # self.path = '/raid/gzh/Data/Kitti' # path on docker container
         self.set = set
         if slurm_dir == '':
-            self.path = '/raid/gzh/Data/Boreas/{:s}'.format(self.set)
+            self.path = '/raid/gzh/Data/Kitti/{:s}'.format(self.set)
         else:
-            self.path = '{:s}/{:s}'.format(slurm_dir, self.set)
+            self.path = '{:s}'.format(slurm_dir)
         self.lidar_dt = 0.1
         self.skip = 1
 
@@ -83,33 +83,23 @@ class BoreasDataset(PointCloudDataset):
         self.seq_fname = sorted([i for i in os.listdir(join(self.path, 'sequences')) if os.path.isdir(join(self.path, 'sequences', i))])
         self.num_seq = len(self.seq_fname)
 
-        # Get a list of sequences (0 - 31)
+        # Get a list of sequences
         if self.set == 'training':
-            self.sequences = [self.seq_fname[i] for i in range(self.num_seq)]
+            self.sequences = ['{:02d}'.format(i) for i in range(11) if i != 8]
         elif self.set == 'validation':
-            self.sequences = [self.seq_fname[i] for i in range(self.num_seq)]
+            self.sequences = ['{:02d}'.format(i) for i in range(11) if i == 8]
         elif self.set == 'test':
-            self.sequences = [self.seq_fname[i] for i in range(self.num_seq)]
+            self.sequences = ['{:02d}'.format(i) for i in range(11) if i == 8]
         else:
-            raise ValueError('Unknown set for Boreas data: ', self.set)
+            raise ValueError('Unknown set for SemanticKitti data: ', self.set)
         print(self.set, self.sequences)
 
         # List all files in each sequence
-        self.lidar = 'velodyne'
-        # self.annotation = 'annotated'
         self.frames = []
-        # self.frame_ts = []
-        # self.frames_indices = []
-        # self.annotated_frames = []
-        # self.annotation_ts = []
-        # self.annotation_indices = []
-        for i, seq in enumerate(self.sequences):
-            velo_path = join(self.path, 'sequences', seq, self.lidar)
-            frames = np.sort([vf for vf in listdir(velo_path) if vf.endswith('.ply')])
-
-            self.frames.append([frame for j, frame in enumerate(frames)])
-
-            print('Seq {:s} has {}/{} valid velodyne frames'.format(seq, len(self.frames[i]), len(frames)))
+        for seq in self.sequences:
+            velo_path = join(self.path, 'sequences', seq, 'velodyne')
+            frames = np.sort([vf[:-4] for vf in listdir(velo_path) if vf.endswith('.bin')])
+            self.frames.append(frames)
 
         ###########################
         # Object classes parameters
@@ -283,24 +273,23 @@ class BoreasDataset(PointCloudDataset):
 
                 # Path of points and labels
                 seq_path = join(self.path, 'sequences', self.sequences[s_ind])
-                velo_file = join(seq_path, self.lidar, self.frames[s_ind][f_ind - f_inc])
+                velo_file = join(seq_path, 'velodyne', self.frames[s_ind][f_ind - f_inc] + '.bin')
                 if self.set == 'test':
                     label_file = None
                 else:
                     label_file = velo_file
 
                 # Read points
-                frame_data = read_ply(velo_file)
-                points = np.vstack((frame_data['x'], frame_data['y'], frame_data['z'], frame_data['f0'])).T
-                points[:,3] = points[:,3] / 255.0
+                frame_points = np.fromfile(velo_file, dtype=np.float32)
+                points = frame_points.reshape((-1, 4))
 
                 if self.set == 'test':
                     # Fake labels
                     sem_labels = np.zeros((points.shape[0],), dtype=np.int32)
                 else:
                     # # Read labels
-                    # annotation_data = read_ply(label_file)
-                    sem_labels = frame_data['classif'] # TODO not sure why label field is used in original code
+                    frame_labels = np.fromfile(label_file, dtype=np.int32)
+                    sem_labels = frame_labels & 0xFFFF  # semantic label in lower half
 
                 # Apply pose (without np.dot to avoid multi-threading)
                 hpoints = np.hstack((points[:, :3], np.ones_like(points[:, :1])))
@@ -561,60 +550,27 @@ class BoreasDataset(PointCloudDataset):
         self.times = []
         self.poses = []
 
-        if self.set in ['training', 'validation']:
-            for i, seq in enumerate(self.sequences):
+        for seq in self.sequences:
 
-                seq_folder = join(self.path, 'sequences', seq)
+            seq_folder = join(self.path, 'sequences', seq)
 
-                # Read poses
-                # poses_all = np.load(join(seq_folder, 'poses.npy')).astype(np.float32)
-                poses_all = np.loadtxt(join(seq_folder, 'map_poses.txt')).astype(np.float32)
-                num_poses_all = poses_all.shape[0]
-                T_map_velo_loc = np.expand_dims(np.identity(4, dtype=np.float32), axis=0).repeat(num_poses_all, axis=0)
-                T_map_velo_loc[:,:3,:3] = poses_all[:,1:].reshape((-1, 4, 3))[:,:3,:3]
-                T_map_velo_loc[:,:3, 3] = (poses_all[:,1:].reshape((-1, 4, 3))[:, 3,:3])
-                self.poses.append([T_map_velo_loc[j] for j in range(T_map_velo_loc.shape[0])])
+            # Read Calib
+            self.calibrations.append(self.parse_calibration(join(seq_folder, "calib.txt")))
 
-            # # pick out start and end frames based on config
-            # frames_updated = [[frame for j, frame in enumerate(self.frames[i])]
-            #                   for i, seq in enumerate(self.sequences)]
-            # # annotated_frames_updated = [[annotated_frame for j, annotated_frame in enumerate(self.annotated_frames[i])]
-            # #                   for i, seq in enumerate(self.sequences)]
-            # poses_updated = [[pose for j, pose in enumerate(self.poses[i])]
-            #                   for i, seq in enumerate(self.sequences)]
-            # self.frames = frames_updated
-            # # self.annotated_frames = annotated_frames_updated
-            # self.poses = poses_updated
-        elif self.set == 'test':
-            for i, seq in enumerate(self.sequences):
+            # Read times
+            self.times.append(np.loadtxt(join(seq_folder, 'times.txt'), dtype=np.float32))
 
-                seq_folder = join(self.path, 'sequences', seq)
+            # Read poses
+            poses_f64 = self.parse_poses(join(seq_folder, 'poses.txt'), self.calibrations[-1])
+            self.poses.append([pose.astype(np.float32) for pose in poses_f64])
 
-                # Read poses
-                # poses_all = np.load(join(seq_folder, 'poses.npy')).astype(np.float32)
-                pose_fname = join(seq_folder, 'map_poses.txt')
-                if os.path.exists(pose_fname):
-                    poses_all = np.loadtxt(pose_fname).astype(np.float32)
-                    num_poses_all = poses_all.shape[0]
-                    T_map_velo_loc = np.expand_dims(np.identity(4, dtype=np.float32), axis=0).repeat(num_poses_all, axis=0)
-                    T_map_velo_loc[:,:3,:3] = poses_all[:,1:].reshape((-1, 4, 3))[:,:3,:3]
-                    T_map_velo_loc[:,:3, 3] = (poses_all[:,1:].reshape((-1, 4, 3))[:, 3,:3])
-                    self.poses.append([T_map_velo_loc[j] for j in range(T_map_velo_loc.shape[0])])
-                else:
-                    T_map_velo_loc = np.zeros((len(self.frames[i]), 4, 4))
-                    T_map_velo_loc[:,0,0] = 1.0
-                    T_map_velo_loc[:,1,1] = 1.0
-                    T_map_velo_loc[:,2,2] = 1.0
-                    T_map_velo_loc[:,3,3] = 1.0
-                    T_map_velo_loc = T_map_velo_loc.astype(np.float32)
-                    self.poses.append([T_map_velo_loc[j] for j in range(T_map_velo_loc.shape[0])])
+        ###################################
+        # Prepare the indices of all frames
+        ###################################
 
-            #     # pick out start and end frames based on config
-            # frames_updated = [[frame for j, frame in enumerate(self.frames[i])]
-            #                   for i, seq in enumerate(self.sequences)]
-            # self.frames = frames_updated
-        else:
-            assert False, "Set not available"
+        seq_inds = np.hstack([np.ones(len(_), dtype=np.int32) * i for i, _ in enumerate(self.frames)])
+        frame_inds = np.hstack([np.arange(len(_), dtype=np.int32) for _ in self.frames])
+        self.all_inds = np.vstack((seq_inds, frame_inds)).T
 
         ###################################
         # Prepare the indices of all frames
@@ -763,10 +719,10 @@ class BoreasDataset(PointCloudDataset):
         return poses
 
 
-class BoreasSampler(Sampler):
-    """Sampler for Boreas"""
+class KittiSampler(Sampler):
+    """Sampler for Kitti"""
 
-    def __init__(self, dataset: BoreasDataset):
+    def __init__(self, dataset: KittiDataset):
         Sampler.__init__(self, dataset)
 
         # Dataset used by the sampler (no copy is made in memory)
@@ -1269,8 +1225,8 @@ class BoreasSampler(Sampler):
         return
 
 
-class BoreasCustomBatch:
-    """Custom batch definition with memory pinning for Boreas"""
+class KittiCustomBatch:
+    """Custom batch definition with memory pinning for Kitti"""
 
     def __init__(self, input_list):
         # Get rid of batch dimension
@@ -1409,8 +1365,8 @@ class BoreasCustomBatch:
         return all_p_list
 
 
-def BoreasCollate(batch_data):
-    return BoreasCustomBatch(batch_data)
+def KittiCollate(batch_data):
+    return KittiCustomBatch(batch_data)
 
 
 def debug_timing(dataset, loader):

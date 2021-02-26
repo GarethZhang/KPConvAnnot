@@ -668,13 +668,18 @@ class ModelTester:
 
                             # Load points
                             seq_path = join(test_loader.dataset.path, 'sequences', test_loader.dataset.sequences[s_ind])
-                            velo_file = join(seq_path, 'velodyne', test_loader.dataset.frames[s_ind][f_ind])
                             if config.dataset == 'Buick':
+                                velo_file = join(seq_path, 'velodyne', test_loader.dataset.frames[s_ind][f_ind])
                                 frame_points = np.load(velo_file).astype(np.float32)
                                 frame_points = frame_points.reshape((-1, 4))
                             elif config.dataset == 'Boreas':
+                                velo_file = join(seq_path, 'velodyne', test_loader.dataset.frames[s_ind][f_ind])
                                 frame_data = read_ply(velo_file)
                                 frame_points = np.vstack((frame_data['x'], frame_data['y'], frame_data['z'])).T
+                            elif config.dataset == 'Kitti':
+                                velo_file = join(seq_path, 'velodyne', test_loader.dataset.frames[s_ind][f_ind] + '.bin')
+                                frame_points = np.fromfile(velo_file, dtype=np.float32)
+                                frame_points = frame_points.reshape((-1, 4))
                             else:
                                 assert False, "Dataset not supported"
                             # seq_path = join(test_loader.dataset.path, 'sequences', test_loader.dataset.sequences[s_ind])

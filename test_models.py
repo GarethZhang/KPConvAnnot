@@ -35,6 +35,7 @@ from datasets.S3DIS import *
 from datasets.SemanticKitti import *
 from datasets.Buick import *
 from datasets.Boreas import *
+from datasets.Kitti import *
 from torch.utils.data import DataLoader
 
 from utils.config import Config
@@ -204,10 +205,10 @@ if __name__ == '__main__':
     #config.in_radius = 4
     config.validation_size = 200
     config.input_threads = 10
-    config.val_batch_num = 2
+    config.val_batch_num = 1
     config.dataset_task = 'slam_segmentation'
     config.class_w = [0.23843341, 0.11460648, 0.5228806 , 0.61805074]
-    # config.dataset = 'Buick'
+    config.dataset = 'Kitti'
 
     # # TODO temporary fixate to evaluate on all available frames
 
@@ -265,6 +266,12 @@ if __name__ == '__main__':
                                      slurm_dir=args.slurm_dir)
         test_sampler = BoreasSampler(test_dataset)
         collate_fn = BoreasCollate
+    elif config.dataset == 'Kitti':
+        test_dataset = KittiDataset(config, set=set, balance_classes=False,
+                                     random_potentials=args.random_potential,
+                                     slurm_dir=args.slurm_dir)
+        test_sampler = KittiSampler(test_dataset)
+        collate_fn = KittiCollate
     else:
         raise ValueError('Unsupported dataset : ' + config.dataset)
 
@@ -305,6 +312,7 @@ if __name__ == '__main__':
     elif config.dataset_task == 'cloud_segmentation':
         tester.cloud_segmentation_test(net, test_loader, config)
     elif config.dataset_task == 'slam_segmentation':
+        print(len(test_loader))
         tester.slam_segmentation_test(net, test_loader, config, args)
     else:
         raise ValueError('Unsupported dataset_task for testing: ' + config.dataset_task)
