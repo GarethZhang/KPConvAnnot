@@ -23,9 +23,9 @@ class Config:
 
     pred_fname = 'pred_labels'
 
-    log_dirs = ['00']
+    log_dirs = ['00', '01', '02', '03', '04', '05']
 
-    keywords = ['00_']
+    keywords = ['00_', '01_', '02_', '03_', '04_', '05_']
 
     # font config
     SMALL_SIZE = 12
@@ -41,7 +41,7 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    data_dir = args.job_dir + '/predictions'
+    data_dir = args.job_dir + '/val_predictions'
     save_dir = args.job_dir
 
     config = Config()

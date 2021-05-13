@@ -69,9 +69,16 @@ def _init_saving(args):
     if not os.path.exists('{}/backup'.format(chkp_dir)):
         os.makedirs('{}/backup'.format(chkp_dir))
 
-    os.system('cp models/architectures.py {}/backup/architectures.py.backup'.format(chkp_dir))
-    os.system('cp train_Buick.py {}/backup/train_Buick.py.backup'.format(chkp_dir))
-    os.system('cp test_models.py {}/backup/test_models.py.backup'.format(chkp_dir))
+    if args.slurm_dir != '':
+        os.system('cp {:s}/models/architectures.py {}/backup/architectures.py.backup'.format(args.source_dir, chkp_dir))
+        os.system('cp {:s}/train_Boreas.py {}/backup/train_Boreas.py.backup'.format(args.source_dir, chkp_dir))
+        os.system('cp {:s}/datasets/Boreas.py {}/backup/Boreas.py.backup'.format(args.source_dir, chkp_dir))
+        os.system('cp {:s}/test_models.py {}/backup/test_models.py.backup'.format(args.source_dir, chkp_dir))
+    else:
+        os.system('cp models/architectures.py {}/backup/architectures.py.backup'.format(chkp_dir))
+        os.system('cp train_Boreas.py {}/backup/train_Boreas.py.backup'.format(chkp_dir))
+        os.system('cp datasets/Boreas.py {}/backup/Boreas.py.backup'.format(chkp_dir))
+        os.system('cp test_models.py {}/backup/test_models.py.backup'.format(chkp_dir))
 
 def model_choice(chosen_log):
 
@@ -125,6 +132,12 @@ if __name__ == '__main__':
                         help='Log directory')
     parser.add_argument('--chkp', type=str, default='', metavar='N', required=False,
                         help='Manual checkpoint selection')
+    parser.add_argument('--random_potential', type=bool, default=False, metavar='N', required=False,
+                        help='Turn off random potential to do sequential test')
+    parser.add_argument('--slurm_dir', type=str, default='', metavar='N',
+                        help='SLURM directory')
+    parser.add_argument('--source_dir', type=str, default='', metavar='N',
+                        help='Source directory')
 
     args = parser.parse_args()
 
@@ -190,7 +203,7 @@ if __name__ == '__main__':
     #config.in_radius = 4
     config.validation_size = 200
     config.input_threads = 10
-    config.val_batch_num = 2
+    config.val_batch_num = 1
     config.dataset_task = 'slam_segmentation'
     config.dataset = 'SemanticKitti'
 
@@ -229,7 +242,9 @@ if __name__ == '__main__':
         test_sampler = S3DISSampler(test_dataset)
         collate_fn = S3DISCollate
     elif config.dataset == 'SemanticKitti':
-        test_dataset = SemanticKittiDataset(config, set=set, balance_classes=False)
+        test_dataset = SemanticKittiDataset(config, set=set, balance_classes=False,
+                                            random_potentials=args.random_potential,
+                                            slurm_dir=args.slurm_dir)
         test_sampler = SemanticKittiSampler(test_dataset)
         collate_fn = SemanticKittiCollate
     elif config.dataset == 'Buick':
@@ -276,6 +291,6 @@ if __name__ == '__main__':
     elif config.dataset_task == 'cloud_segmentation':
         tester.cloud_segmentation_test(net, test_loader, config)
     elif config.dataset_task == 'slam_segmentation':
-        tester.slam_segmentation_test(net, test_loader, config)
+        tester.slam_segmentation_test(net, test_loader, config, args)
     else:
         raise ValueError('Unsupported dataset_task for testing: ' + config.dataset_task)

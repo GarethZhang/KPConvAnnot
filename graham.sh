@@ -2,7 +2,7 @@
 #SBATCH --gres=gpu:v100:1       # Request specific V100
 #SBATCH --cpus-per-task=6  # Cores proportional to GPUs: 6 on Cedar, 10 on Béluga, 16 on Graham.
 #SBATCH --mem=150G       # Memory proportional to GPUs: 32000 Cedar, 47000 Béluga, 64000 Graham.
-#SBATCH --time=4-00:00     # DD-HH:MM:SS
+#SBATCH --time=1-00:00     # DD-HH:MM:SS
 #SBATCH --mail-user=gareth.zhang@mail.utoronto.ca
 #SBATCH --mail-type=BEGIN
 #SBATCH --mail-type=END
@@ -25,35 +25,35 @@ mkdir -p $SEQ_DIR
 # Training sequences
 ####################
 
-DAY=boreas-2020-12-01-13-26
-tar xvf ~/scratch/boreas/$DAY/$DAY.tar -C $SEQ_DIR
-mkdir -p $SEQ_DIR/$DAY/velodyne
-mv $SEQ_DIR/$DAY/*.ply $SEQ_DIR/$DAY/velodyne
-cp ~/scratch/boreas/$DAY/map_poses.txt $SEQ_DIR/$DAY
-
-DAY=boreas-2020-12-04-14-00
-tar xvf ~/scratch/boreas/$DAY/$DAY.tar -C $SEQ_DIR
-mkdir $SEQ_DIR/$DAY/velodyne
-mv $SEQ_DIR/$DAY/*.ply $SEQ_DIR/$DAY/velodyne
-cp ~/scratch/boreas/$DAY/map_poses.txt $SEQ_DIR/$DAY
-
-DAY=boreas-2020-12-08-14-01
-tar xvf ~/scratch/boreas/$DAY/$DAY.tar -C $SEQ_DIR
-mkdir $SEQ_DIR/$DAY/velodyne
-mv $SEQ_DIR/$DAY/*.ply $SEQ_DIR/$DAY/velodyne
-cp ~/scratch/boreas/$DAY/map_poses.txt $SEQ_DIR/$DAY
-
-DAY=boreas-2021-02-02-night
-tar xvf ~/scratch/boreas/$DAY/$DAY.tar -C $SEQ_DIR
-mkdir $SEQ_DIR/$DAY/velodyne
-mv $SEQ_DIR/$DAY/*.ply $SEQ_DIR/$DAY/velodyne
-cp ~/scratch/boreas/$DAY/map_poses.txt $SEQ_DIR/$DAY
+#DAY=boreas-2020-12-01-13-26
+#tar xvf ~/scratch/boreas/$DAY/$DAY.tar -C $SEQ_DIR
+#mkdir -p $SEQ_DIR/$DAY/velodyne
+#mv $SEQ_DIR/$DAY/*.ply $SEQ_DIR/$DAY/velodyne
+#cp ~/scratch/boreas/$DAY/map_poses.txt $SEQ_DIR/$DAY
+#
+#DAY=boreas-2020-12-04-14-00
+#tar xvf ~/scratch/boreas/$DAY/$DAY.tar -C $SEQ_DIR
+#mkdir $SEQ_DIR/$DAY/velodyne
+#mv $SEQ_DIR/$DAY/*.ply $SEQ_DIR/$DAY/velodyne
+#cp ~/scratch/boreas/$DAY/map_poses.txt $SEQ_DIR/$DAY
+#
+#DAY=boreas-2020-12-08-14-01
+#tar xvf ~/scratch/boreas/$DAY/$DAY.tar -C $SEQ_DIR
+#mkdir $SEQ_DIR/$DAY/velodyne
+#mv $SEQ_DIR/$DAY/*.ply $SEQ_DIR/$DAY/velodyne
+#cp ~/scratch/boreas/$DAY/map_poses.txt $SEQ_DIR/$DAY
+#
+#DAY=boreas-2021-02-02-night
+#tar xvf ~/scratch/boreas/$DAY/$DAY.tar -C $SEQ_DIR
+#mkdir $SEQ_DIR/$DAY/velodyne
+#mv $SEQ_DIR/$DAY/*.ply $SEQ_DIR/$DAY/velodyne
+#cp ~/scratch/boreas/$DAY/map_poses.txt $SEQ_DIR/$DAY
 
 ###########################
 # Test sequences for Boreas
 ###########################
-DAY=boreas-2021-01-31-dufferin-00
-tar xvf ~/scratch/boreas/$DAY/$DAY.tar -C $SEQ_DIR
+#DAY=boreas-2021-01-31-dufferin-00
+#tar xvf ~/scratch/boreas/$DAY/$DAY.tar -C $SEQ_DIR
 
 #DAY=boreas-2021-01-31-highway-00-00
 #tar xvf ~/scratch/boreas/$DAY/$DAY.tar -C $SEQ_DIR
@@ -61,15 +61,15 @@ tar xvf ~/scratch/boreas/$DAY/$DAY.tar -C $SEQ_DIR
 #DAY=boreas-2021-01-31-local-00
 #tar xvf ~/scratch/boreas/$DAY/$DAY.tar -C $SEQ_DIR
 
-# Rename if necessary
-python $SOURCEDIR/rename_scans.py --slurm_dir $SLURM_TMPDIR/boreas
+## Rename if necessary
+#python $SOURCEDIR/rename_scans.py --slurm_dir $SLURM_TMPDIR/boreas
 
 ###########################
 # Post-processing for Boreas data
 ###########################
 
-# Separate train, validation and test
-python $SOURCEDIR/separate_train_test.py --data_dir $SLURM_TMPDIR/boreas
+## Separate train, validation and test
+#python $SOURCEDIR/separate_train_test.py --data_dir $SLURM_TMPDIR/boreas
 
 ###########################
 # Test sequences for Kitti
@@ -80,6 +80,8 @@ mkdir -p $SEQ_DIR
 unzip ~/scratch/KITTI/data_odometry_velodyne.zip -d $SEQ_DIR
 unzip ~/scratch/KITTI/data_odometry_calib.zip -d $SEQ_DIR
 unzip ~/scratch/KITTI/data_odometry_labels.zip -d $SEQ_DIR
+cp ~/scratch/KITTI/semantic-kitti-all.yaml $SEQ_DIR/dataset
+cp ~/scratch/KITTI/semantic-kitti.yaml $SEQ_DIR/dataset
 
 ########## 2-17-2021 ########
 ## Start training
@@ -91,12 +93,12 @@ unzip ~/scratch/KITTI/data_odometry_labels.zip -d $SEQ_DIR
 #LOG_DIR=$SOURCEDIR/results/Log_2021-02-17_V1.0
 #python $SOURCEDIR/test_models.py --job_dir $JOB_DIR --log_dir $LOG_DIR --slurm_dir $SLURM_TMPDIR/boreas --source_dir $SOURCEDIR
 
-# Create labels on 12-01
-TEST_DIR=/home/hzhang34/projects/def-tbarfoot/hzhang34/KPConvAnnot/test
-JOB_DIR=Log_2021-02-17_V1.0
-python $SOURCEDIR/create_labels.py --job_dir $TEST_DIR/$JOB_DIR --slurm_dir $SLURM_TMPDIR/boreas
+## Create labels on 12-01
+#TEST_DIR=/home/hzhang34/projects/def-tbarfoot/hzhang34/KPConvAnnot/test
+#JOB_DIR=Log_2021-02-17_V1.0
+#python $SOURCEDIR/create_labels.py --job_dir $TEST_DIR/$JOB_DIR --slurm_dir $SLURM_TMPDIR/boreas
 
-## Test on highway-00
+## Test on highway-00, dufferin-00 and local-00
 #JOB_DIR=$SOURCEDIR/results/Log_2021-02-17_V1
 #LOG_DIR=$SOURCEDIR/results/Log_2021-02-17_V1.2
 #python $SOURCEDIR/test_models.py --job_dir $JOB_DIR --log_dir $LOG_DIR --slurm_dir $SLURM_TMPDIR/boreas --source_dir $SOURCEDIR
@@ -153,45 +155,89 @@ python $SOURCEDIR/create_labels.py --job_dir $TEST_DIR/$JOB_DIR --slurm_dir $SLU
 #python $SOURCEDIR/test_models.py --job_dir $JOB_DIR --log_dir $LOG_DIR --slurm_dir $SLURM_TMPDIR/Kitti/dataset --source_dir $SOURCEDIR
 
 ######### 2-23-2021 ########
-## Using only point coordinates. No other features
-## 45091346
-#JOB_DIR=$SOURCEDIR/results/Log_2021-02-23_V0
-#FEATURE_DIM=2
-#python $SOURCEDIR/train_Boreas.py --job_dir $JOB_DIR --slurm_dir $SLURM_TMPDIR/boreas --source_dir $SOURCEDIR --feature_dims $FEATURE_DIM
 
-## Kitti seq 00 with an early stage trained model
-#JOB_DIR=$SOURCEDIR/results/Log_2021-02-23_V0
-#LOG_DIR=$SOURCEDIR/results/Log_2021-02-23_V0.0
-#python $SOURCEDIR/test_models.py --job_dir $JOB_DIR --log_dir $LOG_DIR --slurm_dir $SLURM_TMPDIR/Kitti/dataset --source_dir $SOURCEDIR
+## Test on Kitti sequences using old branch files## Using only point coordinates. No other features
+### 45091346
+##JOB_DIR=$SOURCEDIR/results/Log_2021-02-23_V0
+##FEATURE_DIM=2
+##python $SOURCEDIR/train_Boreas.py --job_dir $JOB_DIR --slurm_dir $SLURM_TMPDIR/boreas --source_dir $SOURCEDIR --feature_dims $FEATURE_DIM
 #
-## Kitti seq 08
-#JOB_DIR=$SOURCEDIR/results/Log_2021-02-23_V0
-#LOG_DIR=$SOURCEDIR/results/Log_2021-02-23_V0.1
-#python $SOURCEDIR/test_models.py --job_dir $JOB_DIR --log_dir $LOG_DIR --slurm_dir $SLURM_TMPDIR/Kitti/dataset --source_dir $SOURCEDIR
+### Kitti seq 00 with an early stage trained model
+##JOB_DIR=$SOURCEDIR/results/Log_2021-02-23_V0
+##LOG_DIR=$SOURCEDIR/results/Log_2021-02-23_V0.0
+##python $SOURCEDIR/test_models.py --job_dir $JOB_DIR --log_dir $LOG_DIR --slurm_dir $SLURM_TMPDIR/Kitti/dataset --source_dir $SOURCEDIR
+##
+### Kitti seq 08
+##JOB_DIR=$SOURCEDIR/results/Log_2021-02-23_V0
+##LOG_DIR=$SOURCEDIR/results/Log_2021-02-23_V0.1
+##python $SOURCEDIR/test_models.py --job_dir $JOB_DIR --log_dir $LOG_DIR --slurm_dir $SLURM_TMPDIR/Kitti/dataset --source_dir $SOURCEDIR
+##
+### Kitti seq 08 with specified chkp
+##JOB_DIR=$SOURCEDIR/results/Log_2021-02-23_V0
+##LOG_DIR=$SOURCEDIR/results/Log_2021-02-23_V0.2
+##python $SOURCEDIR/test_models.py --job_dir $JOB_DIR --log_dir $LOG_DIR --slurm_dir $SLURM_TMPDIR/Kitti/dataset --source_dir $SOURCEDIR --chkp chkp_0050.tar
+##
+### Boreas
+##JOB_DIR=$SOURCEDIR/results/Log_2021-02-23_V0
+##LOG_DIR=$SOURCEDIR/results/Log_2021-02-23_V0.3
+##python $SOURCEDIR/test_models.py --job_dir $JOB_DIR --log_dir $LOG_DIR --slurm_dir $SLURM_TMPDIR/Kitti/dataset --source_dir $SOURCEDIR --chkp chkp_0050.tar
 #
-## Kitti seq 08 with specified chkp
-#JOB_DIR=$SOURCEDIR/results/Log_2021-02-23_V0
-#LOG_DIR=$SOURCEDIR/results/Log_2021-02-23_V0.2
-#python $SOURCEDIR/test_models.py --job_dir $JOB_DIR --log_dir $LOG_DIR --slurm_dir $SLURM_TMPDIR/Kitti/dataset --source_dir $SOURCEDIR --chkp chkp_0050.tar
+### Include height features now
+### 45091357
+##JOB_DIR=$SOURCEDIR/results/Log_2021-02-23_V1
+##FEATURE_DIM=3
+##python $SOURCEDIR/train_Boreas.py --job_dir $JOB_DIR --slurm_dir $SLURM_TMPDIR/boreas --source_dir $SOURCEDIR --feature_dims $FEATURE_DIM
 #
-# Boreas
-JOB_DIR=$SOURCEDIR/results/Log_2021-02-23_V0
-LOG_DIR=$SOURCEDIR/results/Log_2021-02-23_V0.3
-python $SOURCEDIR/test_models.py --job_dir $JOB_DIR --log_dir $LOG_DIR --slurm_dir $SLURM_TMPDIR/Kitti/dataset --source_dir $SOURCEDIR --chkp chkp_0050.tar
-
-## Include height features now
-## 45091357
+### Test on validation set in random order
+##JOB_DIR=$SOURCEDIR/results/Log_2021-02-23_V1
+##LOG_DIR=$SOURCEDIR/results/Log_2021-02-23_V1.0
+##RAND_POTENTIAL=True
+##python $SOURCEDIR/test_models.py --job_dir $JOB_DIR --log_dir $LOG_DIR --slurm_dir $SLURM_TMPDIR/boreas --source_dir $SOURCEDIR --random_potential $RAND_POTENTIAL
+##
+### Test on Kitti
+##JOB_DIR=$SOURCEDIR/results/Log_2021-02-23_V1
+##LOG_DIR=$SOURCEDIR/results/Log_2021-02-23_V1.1
+##python $SOURCEDIR/test_models.py --job_dir $JOB_DIR --log_dir $LOG_DIR --slurm_dir $SLURM_TMPDIR/Kitti/dataset --source_dir $SOURCEDIR
+##
+### Test on Kitti using old branch files
+##JOB_DIR=$SOURCEDIR/results/Log_2021-02-23_V1
+##LOG_DIR=$SOURCEDIR/results/Log_2021-02-23_V1.2
+##python $SOURCEDIR/test_SemanticKitti.py --job_dir $JOB_DIR --log_dir $LOG_DIR --slurm_dir $SLURM_TMPDIR/Kitti/dataset --source_dir $SOURCEDIR
+#
+### Test on Kitti using old branch files
+##JOB_DIR=$SOURCEDIR/results/Log_2021-02-23_V1
+##LOG_DIR=$SOURCEDIR/results/Log_2021-02-23_V1.3
+##python $SOURCEDIR/test_SemanticKitti.py --job_dir $JOB_DIR --log_dir $LOG_DIR --slurm_dir $SLURM_TMPDIR/Kitti/dataset --source_dir $SOURCEDIR
 #JOB_DIR=$SOURCEDIR/results/Log_2021-02-23_V1
-#FEATURE_DIM=3
-#python $SOURCEDIR/train_Boreas.py --job_dir $JOB_DIR --slurm_dir $SLURM_TMPDIR/boreas --source_dir $SOURCEDIR --feature_dims $FEATURE_DIM
+#LOG_DIR=$SOURCEDIR/results/Log_2021-02-23_V1.4
+#python $SOURCEDIR/test_SemanticKitti.py --job_dir $JOB_DIR --log_dir $LOG_DIR --slurm_dir $SLURM_TMPDIR/Kitti/dataset --source_dir $SOURCEDIR
 
-# Test on validation set in random order
-JOB_DIR=$SOURCEDIR/results/Log_2021-02-23_V1
-LOG_DIR=$SOURCEDIR/results/Log_2021-02-23_V1.0
-RAND_POTENTIAL=True
-python $SOURCEDIR/test_models.py --job_dir $JOB_DIR --log_dir $LOG_DIR --slurm_dir $SLURM_TMPDIR/boreas --source_dir $SOURCEDIR --random_potential $RAND_POTENTIAL
+## Test on Kitti seq 00
+#JOB_DIR=$SOURCEDIR/results/Log_2021-02-23_V1
+#LOG_DIR=$SOURCEDIR/results/Log_2021-02-23_V1.5
+#python $SOURCEDIR/test_SemanticKitti.py --job_dir $JOB_DIR --log_dir $LOG_DIR --slurm_dir $SLURM_TMPDIR/Kitti/dataset --source_dir $SOURCEDIR
 
-# Test on Kitti
-JOB_DIR=$SOURCEDIR/results/Log_2021-02-23_V1
-LOG_DIR=$SOURCEDIR/results/Log_2021-02-23_V1.1
-python $SOURCEDIR/test_models.py --job_dir $JOB_DIR --log_dir $LOG_DIR --slurm_dir $SLURM_TMPDIR/Kitti/dataset --source_dir $SOURCEDIR
+## Create labels on kitti seq 00
+#TEST_DIR=/home/hzhang34/projects/def-tbarfoot/hzhang34/KPConvAnnot/test
+#JOB_DIR=Log_2021-02-23_V1.4
+#python $SOURCEDIR/create_kitti_labels.py --job_dir $TEST_DIR/$JOB_DIR --slurm_dir $SLURM_TMPDIR/Kitti/dataset
+
+SCAN_DIR=$SOURCEDIR/test/Log_2021-02-17_V1.2/predictions
+KEYWORDS=highway
+SAVEFNAME=highway
+python $SOURCEDIR/gen_movie.py --scan_dir $SCAN_DIR --keywords $KEYWORDS --save_fname $SAVEFNAME
+
+#SCAN_DIR=$SOURCEDIR/test/Log_2021-02-17_V1.2/predictions
+#KEYWORDS=dufferin
+#SAVEFNAME=dufferin
+#python $SOURCEDIR/gen_movie.py --scan_dir $SCAN_DIR --keywords $KEYWORDS --save_fname $SAVEFNAME
+
+SCAN_DIR=$SOURCEDIR/test/Log_2021-02-17_V1.2/predictions
+KEYWORDS=local
+SAVEFNAME=local
+python $SOURCEDIR/gen_movie.py --scan_dir $SCAN_DIR --keywords $KEYWORDS --save_fname $SAVEFNAME
+
+SCAN_DIR=$SOURCEDIR/test/Log_2021-02-23_V1.4/val_predictions
+KEYWORDS=local
+SAVEFNAME=local
+python $SOURCEDIR/gen_movie.py --scan_dir $SCAN_DIR --keywords $KEYWORDS --save_fname $SAVEFNAME

@@ -54,27 +54,32 @@ from utils.config import bcolors
 class SemanticKittiDataset(PointCloudDataset):
     """Class to handle SemanticKitti dataset."""
 
-    def __init__(self, config, set='training', balance_classes=True):
+    def __init__(self, config, set='training', balance_classes=True, slurm_dir='', random_potentials=True):
         PointCloudDataset.__init__(self, 'SemanticKitti')
 
         ##########################
         # Parameters for the files
         ##########################
 
+        # Training or test set
+        self.set = set
+
         # Dataset folder
-        self.path = '/raid/gzh/Data/SemanticKitti'
+        if slurm_dir == '':
+            self.path = '/raid/gzh/Data/Boreas/{:s}'.format(self.set)
+        else:
+            self.path = '{:s}'.format(slurm_dir)
 
         # Type of task conducted on this dataset
         self.dataset_task = 'slam_segmentation'
 
-        # Training or test set
-        self.set = set
+        self.random_potentials = random_potentials
 
         # Get a list of sequences
         if self.set == 'training':
             self.sequences = ['{:02d}'.format(i) for i in range(11) if i != 8]
         elif self.set == 'validation':
-            self.sequences = ['{:02d}'.format(i) for i in range(11) if i == 8]
+            self.sequences = ['{:02d}'.format(i) for i in range(11) if i == 0]
         elif self.set == 'test':
             self.sequences = ['{:02d}'.format(i) for i in range(11, 22)]
         else:
@@ -158,7 +163,10 @@ class SemanticKittiDataset(PointCloudDataset):
         self.batch_limit.share_memory_()
 
         # Initialize frame potentials
-        self.potentials = torch.from_numpy(np.random.rand(self.all_inds.shape[0]) * 0.1 + 0.1)
+        if self.random_potentials:
+            self.potentials = torch.from_numpy(np.random.rand(self.all_inds.shape[0]) * 0.1 + 0.1)
+        else:
+            self.potentials = torch.from_numpy(np.arange(self.all_inds.shape[0]).astype(np.float64))
         self.potentials.share_memory_()
 
         # If true, the same amount of frames is picked per class
@@ -177,8 +185,13 @@ class SemanticKittiDataset(PointCloudDataset):
         # shared epoch indices and classes (in case we want class balanced sampler)
         if set == 'training':
             N = int(np.ceil(config.epoch_steps * self.batch_num * 1.1))
-        else:
-            N = int(np.ceil(config.validation_size * self.batch_num * 1.1))
+        elif set == 'test':
+            N = config.validation_size
+        elif set == 'validation':
+            if random_potentials:
+                N = int(np.ceil(config.validation_size * self.batch_num * 1.1))
+            else:
+                N = config.validation_size
         self.epoch_i = torch.from_numpy(np.zeros((1,), dtype=np.int64))
         self.epoch_inds = torch.from_numpy(np.zeros((N,), dtype=np.int64))
         self.epoch_labels = torch.from_numpy(np.zeros((N,), dtype=np.int32))
@@ -819,8 +832,11 @@ class SemanticKittiSampler(Sampler):
                 gen_indices = torch.randperm(self.dataset.potentials.shape[0])
 
             # Update potentials (Change the order for the next epoch)
-            self.dataset.potentials[gen_indices] = torch.ceil(self.dataset.potentials[gen_indices])
-            self.dataset.potentials[gen_indices] += torch.from_numpy(np.random.rand(gen_indices.shape[0]) * 0.1 + 0.1)
+            if self.dataset.random_potentials:
+                self.dataset.potentials[gen_indices] = torch.ceil(self.dataset.potentials[gen_indices])
+                self.dataset.potentials[gen_indices] += torch.from_numpy(np.random.rand(gen_indices.shape[0]) * 0.1 + 0.1)
+            else:
+                self.dataset.potentials[gen_indices] += torch.from_numpy(np.array(100000.0, dtype=np.float64))
 
             # Update epoch inds
             self.dataset.epoch_inds += gen_indices

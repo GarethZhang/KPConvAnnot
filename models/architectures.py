@@ -386,6 +386,7 @@ class KPFCNN(nn.Module):
         # Set all ignored labels to -1 and correct the other label to be in [0, C-1] range
         target = - torch.ones_like(labels)
         for i, c in enumerate(self.valid_labels):
+            print(self.valid_labels)
             target[labels == c] = i
 
         predicted = torch.argmax(outputs.data, dim=1)
